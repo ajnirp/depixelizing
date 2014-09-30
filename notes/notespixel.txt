@@ -1,0 +1,118 @@
+pixel art characterists
+	popular due to hardware constraints
+	small palette of colors
+	each pixel placed manually
+
+challenges to vectorizing pixel art
+	typical techniques - segmentation, edge detection filtering
+	group pixels into regions, convert the boundaries to smooth curves
+	pixel art contains tiny features, maybe even just one pixel
+	such algorithms will incur loss of detail
+	specialized algorithms have staircasing artifacts due to their local nature
+		staircasing - 
+	further, magnification is usually only 2x 3x or 4x
+
+input - pixel art image
+output - resolution-independent vector representation
+
+challenges
+	every pixel matters
+	pixel-wide 8-connected lines and curves
+		at original scale, they appear connected
+		upon magnification, they appear disconnected
+	locally ambiguous configurations
+		2x2 checkerboard - which one to join? (foreground/background ambiguity)
+
+w+1 x h+1 mesh
+each square is a pixel
+vertical/horizontal neighbours have an edge in common
+diagonal neighbours have a pixel in common
+
+similarity graph for each pixel
+used to disconnect dissimilar pixels
+initally each pixel is connected to its eight neighbours
+remove edges between dissimilar pixels
+dual of the resulting graph shows similar neighbours, now we only consider the dual
+	if a 2x2 block is fully connected, remove both diagonals as it is part of a continuously shaded region
+	if a 2x2 block has both diagonals but no horizontal/vertical connections, we need to choose which diagonal to remove
+		cannot decide locally
+
+use 3 heuristics
+	each heuristic has a weight
+	choose the connection with the greater aggregated weight
+
+curves heuristic
+	a curve connects valence-2 nodes in the similarity graph
+		no junctions
+	the two ends are valence-1 nodes
+	minimum length of a curve is 1
+	heuristic: keep the longer curve
+
+sparse pixels heuristic
+	sparser color perceived as foreground, other as background
+	measure the size of the component connected to the diagonals
+	consider an 8x8 window centred around the diagonals
+	heuristic: connect the pixels with the smaller connected component
+	weight of heuristic = difference in sizes of connected components
+		doubt: what if there are many connected components in the image?
+
+islands heuristic
+	want to avoid fragmenting the image too much
+	if one of the two-diagonals has valence-1 node, if we cut the connection we would get single disconnected pixel
+	we vote for keeping this connection with an empirical weight of 5
+
+after removing all crossing diagonals the graph is planar
+create a reshaped pixel graph
+	cut each edge in the similarity graph into two halves, assign each half to the node it is connected to
+	generalized voronoi - each voronoi cell contains the points that are closest to the union of a node and its half edges
+	take this graph and collapse all valence 2 nodes to form the simplified voronoi graph
+
+optimisation - we directly compute the simplified voronoi graph instead of constructing the accurate one and then collapsing it
+	shape of a voronoi cell is fully determined by its 8 neighbours
+	walk in scanline order over the nodes of the similarity mesh
+	match specific configurations in 3x3 blocks at a time
+	paste together the corresponding cell templates
+
+planar graph - a graph that can be drawn such that edges do not cut each other (except of course when they meet at the nodes)
+
+the reshaped cell graph has resolved connectivity issues
+	however, it may still look blocky
+	identify visible edges - where significantly different colors meet
+	connected sequences of visible edges that contain only valence-2 nodes are converted into quadratic B-spline curves
+
+when three edges meet at a node, we connect two splines into one, creating a T-junction
+	which two out of three to connect?
+	each edge is categorized either as a shading edge or a contour edge
+	shading edge - separate cells with similar colours that were nevertheless different enough to be classified as visible to begin with
+	contour edge - separate cells with strongly dissimilar colors - based on YUV distance metric - if distance > 100/255
+	if at a 3-way junction we have one shading edge and two contour edges we connect the contour edges
+	if this heuristic does not resolve the situation, simply connect the two edges with the angle closest to 180 degrees
+
+b-spline curve optimization
+	we still have staircasing artifacts
+	improve the smoothness of the curves by optimizing the locations of their control points
+	minimize the sum of per-node energy terms - this gives us a new position for each pixel
+	energy of a node depends on its position and its smoothness
+		smoothness = absence of curvature
+		smoothness = (integral along curve influenced by point i) (magnitude of curvature at point s on the curve)
+			compute by numerical integration
+		positional energy term is used to minimize movement of points
+		positional energy = magnitude(new pos - old pos) ^ 4
+	problem - what if we remove intentionally sharp features along with staircasing artifacts? this is oversmoothing and we need to avoid it
+		detect sharp features in the model
+		exclude the regions around these features from the integration
+		now, the nodes in the reshaped cell graph are quantized to quarter-pixel locations
+			so the sharp features can only take a finite number of forms - along with their reflections and rotations
+			once we detect a pattern, we exclude the part of the spline curve between the nodes of the pattern from the integration
+
+optimizing the energy function
+	at each iteration do a random walk of the nodes and optimize each one locally
+	given a node, take a small radius and try several random new offset positions within a small radius around the current location
+	then, keep the new location that minimizes the node's energy term
+
+note - this optimizes only the spline nodes
+
+DOUBTS
+
+how to identify visible edges?
+how to fit bsplines? - deboor 1978
