@@ -17,7 +17,13 @@ class Node(object):
         if n is not None:
             self.neighbours.add(n)
 
-im = Image.open(sys.argv[1])
+    def get_xy(self):
+        return (self.x, self.y)
+
+imagename = 'img/smw_boo.png'
+
+im = Image.open(imagename)
+# im = Image.open(sys.argv[1])
 w, h = im.size
 # print im.size, im.mode
 
@@ -34,7 +40,7 @@ def get_node(x, y, im):
 # create nodes
 for row in xrange(h):
     for col in xrange(w):
-        n = Node(image=sys.argv[1], x=col, y=row, rgb=im.getpixel((col, row)))
+        n = Node(image=im, x=col, y=row, rgb=im.getpixel((col, row)))
         nodes.append(n)
 
 # initialize similarity graph
@@ -100,9 +106,9 @@ def rgb2yuv(r,g,b):
 
 # compare YUV values of two pixels, return
 # True if they are different, else False
-def pixels_are_dissimilar(pix1, pix2):
-    r1, g1, b1 = pix1
-    r2, g2, b2 = pix2
+def pixels_are_dissimilar(rgb1, rgb2):
+    r1, g1, b1 = rgb1
+    r2, g2, b2 = rgb2
     y1, u1, v1 = rgb2yuv(r1, g1, b1)
     y2, u2, v2 = rgb2yuv(r2, g2, b2)
     ydiff = abs(y1 - y2) > 48.0/255
@@ -118,6 +124,47 @@ for x in xrange(0, w):
         for ne in neighbours_to_remove:
             n.neighbours.remove(ne)
             ne.neighbours.remove(n)
+
+# to measure the curve length that a diagonal is part of
+# start from one end of the diagonal and move away from its neighbour in the other direction
+# measure the length of that curve. similarly, measure the length of the other curve
+# then add the two half-curve lengths (plus 1) to get the length of the entire curve
+def overall_curve_len(node1, node2):
+    assert(node1 in node2.neighbours)
+    assert(node2 in node1.neighbours)
+    return half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1
+
+# node1 is the node we start exploring from
+# node2 is the other node
+def half_curve_len(node1, node2):
+    assert(node1 in node2.neighbours)
+    assert(node2 in node1.neighbours)
+    # early exit - node1 does not have valence 2
+    # so no point exploring further
+    if len(node1.neighbours) != 2:
+        return 0
+    assert(len(node1.neighbours) == 2)
+    current, previous = node1, node2
+    # we store the nodes encountered thus far to detect cycles
+    # otherwise, we would loop forever if we enter a cycle
+    encountered = set([])
+    result = 0
+    while len(current.neighbours) == 2:
+        # get the neighbours of the current pixel
+        neighb1, neighb2 = current.neighbours
+        # and update current and previous
+        if neighb1.get_xy == previous.get_xy:
+            current = neighb2
+        else:
+            current = neighb1
+        previous = current
+        if current not in encountered:
+            encountered.add(current)
+        else:
+            break
+        # and update the result
+        result += 1
+    return result
 
 # apply heuristics to make graph planar
 for x in xrange(0, w-1):
@@ -152,5 +199,10 @@ for x in xrange(0, w-1):
             down.neighbours.remove(right)
 
         if only_diagonals:
-            # apply heuristics - TODO
+            # curves heuristic
+            print overall_curve_len(n, rightdown)
+            # print right.get_xy(), down.get_xy()
+            # print [xx.get_xy() for xx in right.neighbours]
+            # print [xx.get_xy() for xx in down.neighbours]
+            print overall_curve_len(right, down)
             pass
