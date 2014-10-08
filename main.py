@@ -16,6 +16,7 @@ class Node(object):
     def make_conn(self, n):
         if n is not None:
             self.neighbours.add(n)
+            n.neighbours.add(self)
 
     def get_xy(self):
         return (self.x, self.y)
@@ -117,8 +118,8 @@ def pixels_are_dissimilar(rgb1, rgb2):
     return ydiff or udiff or vdiff
 
 # remove dissimilar edges by yuv metric
-for x in xrange(0, w):
-    for y in xrange(0, h):
+for x in xrange(w):
+    for y in xrange(h):
         n = get_node(x, y, im)
         neighbours_to_remove = [ne for ne in n.neighbours if pixels_are_dissimilar(n.rgb, ne.rgb)]
         for ne in neighbours_to_remove:
