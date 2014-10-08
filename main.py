@@ -138,7 +138,7 @@ for x in xrange(w):
 # measure the length of that curve. similarly, measure the length of the other curve
 # then add the two half-curve lengths (plus 1) to get the length of the entire curve
 def overall_curve_len(node1, node2):
-    print node1.get_xy(), node2.get_xy(),
+    # print node1.get_xy(), node2.get_xy(),
     assert(node1 in node2.neighbours)
     assert(node2 in node1.neighbours)
     curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
@@ -171,7 +171,7 @@ def half_curve_len(node1, node2):
             current = neighb1
         previous = get_node(old_current_x, old_current_y, im)
         result += 1
-        print current.get_xy(),
+        # print current.get_xy(),
         if current not in encountered:
             encountered.add(current)
         else:
