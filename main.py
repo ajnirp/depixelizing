@@ -18,6 +18,11 @@ class Node(object):
             self.neighbours.add(n)
             n.neighbours.add(self)
 
+    def remove_conn(self, n):
+        if n is not None:
+            self.neighbours.remove(n)
+            n.neighbours.remove(self)
+
     def get_xy(self):
         return (self.x, self.y)
 
@@ -42,7 +47,10 @@ def get_node(x, y, im):
 for row in xrange(h):
     for col in xrange(w):
         n = Node(image=im, x=col, y=row, rgb=im.getpixel((col, row)))
+        # r, g, b = im.getpixel((col,row))
+        # print b,
         nodes.append(n)
+    # print
 
 # initialize similarity graph
 for row in xrange(h):
@@ -123,17 +131,19 @@ for x in xrange(w):
         n = get_node(x, y, im)
         neighbours_to_remove = [ne for ne in n.neighbours if pixels_are_dissimilar(n.rgb, ne.rgb)]
         for ne in neighbours_to_remove:
-            n.neighbours.remove(ne)
-            ne.neighbours.remove(n)
+            n.remove_conn(ne)
 
 # to measure the curve length that a diagonal is part of
 # start from one end of the diagonal and move away from its neighbour in the other direction
 # measure the length of that curve. similarly, measure the length of the other curve
 # then add the two half-curve lengths (plus 1) to get the length of the entire curve
 def overall_curve_len(node1, node2):
+    print node1.get_xy(), node2.get_xy(),
     assert(node1 in node2.neighbours)
     assert(node2 in node1.neighbours)
-    return half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1
+    curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
+    print curve_len
+    return curve_len
 
 # node1 is the node we start exploring from
 # node2 is the other node
@@ -148,28 +158,31 @@ def half_curve_len(node1, node2):
     current, previous = node1, node2
     # we store the nodes encountered thus far to detect cycles
     # otherwise, we would loop forever if we enter a cycle
-    encountered = set([])
+    encountered = set([node2])
     result = 0
     while len(current.neighbours) == 2:
         # get the neighbours of the current pixel
         neighb1, neighb2 = current.neighbours
         # and update current and previous
-        if neighb1.get_xy == previous.get_xy:
+        old_current_x, old_current_y = current.get_xy()
+        if neighb1 == previous:
             current = neighb2
         else:
             current = neighb1
-        previous = current
+        previous = get_node(old_current_x, old_current_y, im)
+        result += 1
+        print current.get_xy(),
         if current not in encountered:
             encountered.add(current)
         else:
+            # cycle detected, divide by half to avoid double-counting
+            result /= 2.0
             break
-        # and update the result
-        result += 1
     return result
 
 # apply heuristics to make graph planar
-for x in xrange(0, w-1):
-    for y in xrange(0, h-1):
+for x in xrange(w-1):
+    for y in xrange(h-1):
         n = get_node(x, y, im)
         right = get_node(x+1, y, im) # node to the right of the curr node
         down = get_node(x, y+1, im) # node directly below the curr node
@@ -193,17 +206,11 @@ for x in xrange(0, w-1):
         only_diagonals = no_vert_horiz_edges and both_diagonals # only the diagonals are present
 
         if fully_connected:
-            # remove both diagonals
-            n.neighbours.remove(rightdown)
-            rightdown.neighbours.remove(n)
-            right.neighbours.remove(down)
-            down.neighbours.remove(right)
+            n.remove_conn(rightdown)
+            right.remove_conn(down)
 
         if only_diagonals:
             # curves heuristic
-            print overall_curve_len(n, rightdown)
-            # print right.get_xy(), down.get_xy()
-            # print [xx.get_xy() for xx in right.neighbours]
-            # print [xx.get_xy() for xx in down.neighbours]
-            print overall_curve_len(right, down)
+            overall_curve_len(n, rightdown)
+            overall_curve_len(right, down)
             pass
