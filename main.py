@@ -258,3 +258,7 @@ for x in xrange(w-1):
             else:
                 keep_diag1 -= component_size_difference
             # islands heuristic
+            if (len(n.neighbours) == 1 or len(rightdown.neighbours) == 1) and len(right.neighbours) != 1 and len(down.neighbours) != 1:
+                keep_diag1 += 5
+            elif len(n.neighbours) != 1 and len(rightdown.neighbours) != 1 and (len(right.neighbours) == 1 or len(down.neighbours) == 1):
+                keep_diag1 -= 5
