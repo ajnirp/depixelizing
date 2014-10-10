@@ -29,9 +29,7 @@ class Node(object):
 imagename = 'img/smw_boo.png'
 
 im = Image.open(imagename)
-# im = Image.open(sys.argv[1])
 w, h = im.size
-# print im.size, im.mode
 
 nodes = []
 
@@ -47,10 +45,7 @@ def get_node(x, y, im):
 for row in xrange(h):
     for col in xrange(w):
         n = Node(image=im, x=col, y=row, rgb=im.getpixel((col, row)))
-        # r, g, b = im.getpixel((col,row))
-        # print b,
         nodes.append(n)
-    # print
 
 # initialize similarity graph
 for row in xrange(h):
@@ -142,7 +137,7 @@ def overall_curve_len(node1, node2):
     assert(node1 in node2.neighbours)
     assert(node2 in node1.neighbours)
     curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
-    print curve_len
+    # print curve_len
     return curve_len
 
 # node1 is the node we start exploring from
@@ -180,6 +175,30 @@ def half_curve_len(node1, node2):
             break
     return result
 
+def largest_connected_components(topleft, topright, bottomleft, bottomright, window_edge_len, im):
+    w, h = im.size
+    half_window_minus_one = window_edge_len/2 - 1
+    # any pixel we encounter should not exceed these bounds
+    max_x = min(w-1, bottomright.x + half_window_minus_one)
+    min_x = max(0,   topleft.x     - half_window_minus_one)
+    max_y = min(h-1, bottomleft.y  + half_window_minus_one)
+    min_y = max(0,   topleft.y     - half_window_minus_one)
+    # use depth-first search
+    component1_size = dfs_connected_component_size(topleft, max_x, min_x, max_y, min_y)
+    component2_size = dfs_connected_component_size(topright, max_x, min_x, max_y, min_y)
+    return component1_size, component2_size
+
+def dfs_connected_component_size(node, max_x, min_x, max_y, min_y):
+    encountered = set([node])
+    stack = [node]
+    while len(stack) > 0:
+        current = stack.pop()
+        for ne in current.neighbours:
+            if ne not in encountered and min_x <= ne.x <= max_x and min_y <= ne.y <= max_y:
+                encountered.add(ne)
+                stack.append(ne)
+    return len(encountered)
+
 # apply heuristics to make graph planar
 for x in xrange(w-1):
     for y in xrange(h-1):
@@ -205,12 +224,37 @@ for x in xrange(w-1):
         fully_connected = vert_and_horiz_edges and both_diagonals # all 6 connections are present
         only_diagonals = no_vert_horiz_edges and both_diagonals # only the diagonals are present
 
+        # we increase this each time a heuristic votes to keep diagonal 1
+        # and decrease this each time a heuristic votes to keep diagonal 2
+        keep_diag1 = 0.0
+        # at the end of the three heuristics, if it is > 0, we keep diagonal 2
+        # and if it is < 0, we keep diagonal 2
+        # no clue what we should do if it equals 0, though
+
         if fully_connected:
             n.remove_conn(rightdown)
             right.remove_conn(down)
 
         if only_diagonals:
             # curves heuristic
-            overall_curve_len(n, rightdown)
-            overall_curve_len(right, down)
-            pass
+            # the longer curve should be kept
+            diag1_curve_len = overall_curve_len(n, rightdown)
+            diag2_curve_len = overall_curve_len(right, down)
+            curve_len_difference = abs(diag1_curve_len - diag2_curve_len)
+            if diag1_curve_len > diag2_curve_len:
+                keep_diag1 += curve_len_difference
+            else:
+                keep_diag1 -= curve_len_difference
+            # sparse pixels heuristic
+            # for each diagonal, find the length of the largest connected component
+            # while making sure that we stay within a window of, say, 8
+            window_edge_len = 8
+            component1_size, component2_size = largest_connected_components(n, right, down, rightdown, window_edge_len, im)
+            component_size_difference = abs(component1_size - component2_size)
+            # if n.get_xy() == (7,10):
+            #     print component1_size, component2_size
+            if component1_size < component2_size:
+                keep_diag1 += component_size_difference
+            else:
+                keep_diag1 -= component_size_difference
+            # islands heuristic
