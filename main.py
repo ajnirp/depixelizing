@@ -359,9 +359,11 @@ def find_all_voronoi_points(x, y, im):
 # find the convex hull of a bunch of points represented as 2-tuples
 # we use the Jarvis march: http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
 def convex_hull(pts):
-    result = []
+    if len(pts) == 0:
+        return []
 
     pts_list = list(pts)
+    result = []
 
     # first, find the leftmost point
     point_on_hull = sorted(pts_list, key=lambda x: x[0])[0]
@@ -407,3 +409,5 @@ test_convex_hull()
 for x in xrange(w):
     for y in xrange(h):
         find_all_voronoi_points(x, y, im)
+        n = get_node(x, y, im)
+        n.vor_pts = set(convex_hull(n.vor_pts))
