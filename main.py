@@ -279,18 +279,21 @@ def find_all_voronoi_points(x, y, im):
             n.vor_pts.add((x, y - 0.25))
     else:
         n.vor_pts.add((x, y - 0.5))
+
     dn = get_node(x, y+1, im)
     if dn is not None:
         if dn not in n.neighbours:
             n.vor_pts.add((x, y + 0.25))
     else:
         n.vor_pts.add((x, y + 0.5))
+
     lt = get_node(x, y-1, im)
     if lt is not None:
         if lt not in n.neighbours:
             n.vor_pts.add((x - 0.25, y))
     else:
         n.vor_pts.add((x - 0.5, y))
+
     rt = get_node(x, y-1, im)
     if rt is not None:
         if rt not in n.neighbours:
@@ -307,6 +310,7 @@ def find_all_voronoi_points(x, y, im):
     uplt = get_node(x-1, y-1, im)
     if uplt is not None:
         if uplt in n.neighbours:
+            n.vor_pts.add(x - 0.5, y - 0.5)
             if up_in_neighbours and not lt_in_neighbours:
                 n.vor_pts.add((x - 0.75, y - 0.25))
             elif lt_in_neighbours and not up_in_neighbours:
@@ -314,6 +318,12 @@ def find_all_voronoi_points(x, y, im):
             else:
                 n.vor_pts.add((x - 0.75, y - 0.25))
                 n.vor_pts.add((x - 0.25, y - 0.75))
+        else:
+            if up in lt.neighbours:
+                # assert lt in up.neighbours
+                n.vor_pts(x - 0.25, y - 0.25)
+            else:
+                n.vor_pts(x - 0.5, y - 0.5)
     else:
         n.vor_pts.add((x - 0.5, y - 0.5))
 
@@ -327,6 +337,11 @@ def find_all_voronoi_points(x, y, im):
             else:
                 n.vor_pts.add((x - 0.75, y + 0.25))
                 n.vor_pts.add((x - 0.25, y + 0.75))
+        else:
+            if dn in lt.neighbours:
+                n.vor_pts(x - 0.25, y + 0.25)
+            else:
+                n.vor_pts(x - 0.5, y + 0.5)
     else:
         n.vor_pts.add((x - 0.5, y + 0.5))
 
@@ -340,6 +355,11 @@ def find_all_voronoi_points(x, y, im):
             else:
                 n.vor_pts.add((x + 0.75, y - 0.25))
                 n.vor_pts.add((x + 0.25, y - 0.75))
+        else:
+            if up in rt.neighbours:
+                n.vor_pts(x + 0.25, y + 0.25)
+            else:
+                n.vor_pts(x + 0.5, y + 0.5)
     else:
         n.vor_pts.add((x + 0.5, y - 0.5))
 
@@ -353,6 +373,11 @@ def find_all_voronoi_points(x, y, im):
             else:
                 n.vor_pts.add((x + 0.75, y + 0.25))
                 n.vor_pts.add((x + 0.25, y + 0.75))
+        else:
+            if dn in rt.neighbours:
+                n.vor_pts(x + 0.25, y + 0.25)
+            else:
+                n.vor_pts(x + 0.5, y + 0.5)
     else:
         n.vor_pts.add((x + 0.5, y + 0.5))
 
