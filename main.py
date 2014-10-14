@@ -11,6 +11,10 @@ class Node(object):
         self.y = y
         self.neighbours = set([])
         self.rgb = rgb
+        # ALL voronoi cell points
+        # we take the convex hull of these to get
+        # the actual voronoi cell points
+        self.vor_pts = set([])
 
     # connect two nodes
     def make_conn(self, n):
@@ -262,3 +266,98 @@ for x in xrange(w-1):
                 keep_diag1 += 5
             elif len(n.neighbours) != 1 and len(rightdown.neighbours) != 1 and (len(right.neighbours) == 1 or len(down.neighbours) == 1):
                 keep_diag1 -= 5
+
+def find_all_voronoi_points(x, y, im):
+    n = get_node(x, y, im)
+
+    # for each of the eight directions, decide
+    # where to put points, if at all
+    # first, the up, down, left, right edges
+    up = get_node(x, y-1, im)
+    if up is not None:
+        if up not in n.neighbours:
+            n.vor_pts.add((x, y - 0.25))
+    else:
+        n.vor_pts.add((x, y - 0.5))
+    dn = get_node(x, y+1, im)
+    if dn is not None:
+        if dn not in n.neighbours:
+            n.vor_pts.add((x, y + 0.25))
+    else:
+        n.vor_pts.add((x, y + 0.5))
+    lt = get_node(x, y-1, im)
+    if lt is not None:
+        if lt not in n.neighbours:
+            n.vor_pts.add((x - 0.25, y))
+    else:
+        n.vor_pts.add((x - 0.5, y))
+    rt = get_node(x, y-1, im)
+    if rt is not None:
+        if rt not in n.neighbours:
+            n.vor_pts.add((x + 0.25, y))
+    else:
+        n.vor_pts.add((x + 0.5, y))
+
+    # next, the diagonal neighbours
+    up_in_neighbours = up is not None and up in n.neighbours
+    dn_in_neighbours = dn is not None and dn in n.neighbours
+    lt_in_neighbours = lt is not None and lt in n.neighbours
+    rt_in_neighbours = rt is not None and rt in n.neighbours
+
+    uplt = get_node(x-1, y-1, im)
+    if uplt is not None:
+        if uplt in n.neighbours:
+            if up_in_neighbours and not lt_in_neighbours:
+                n.vor_pts.add((x - 0.75, y - 0.25))
+            elif lt_in_neighbours and not up_in_neighbours:
+                n.vor_pts.add((x - 0.25, y - 0.75))
+            else:
+                n.vor_pts.add((x - 0.75, y - 0.25))
+                n.vor_pts.add((x - 0.25, y - 0.75))
+    else:
+        n.vor_pts.add((x - 0.5, y - 0.5))
+
+    dnlt = get_node(x+1, y-1, im)
+    if dnlt is not None:
+        if dnlt in n.neighbours:
+            if dn_in_neighbours and not lt_in_neighbours:
+                n.vor_pts.add((x - 0.75, y + 0.25))
+            elif lt_in_neighbours and not dn_in_neighbours:
+                n.vor_pts.add((x - 0.25, y + 0.75))
+            else:
+                n.vor_pts.add((x - 0.75, y + 0.25))
+                n.vor_pts.add((x - 0.25, y + 0.75))
+    else:
+        n.vor_pts.add((x - 0.5, y + 0.5))
+
+    uprt = get_node(x-1, y-1, im)
+    if uprt is not None:
+        if uprt in n.neighbours:
+            if up_in_neighbours and not rt_in_neighbours:
+                n.vor_pts.add((x + 0.75, y - 0.25))
+            elif rt_in_neighbours and not up_in_neighbours:
+                n.vor_pts.add((x + 0.25, y - 0.75))
+            else:
+                n.vor_pts.add((x + 0.75, y - 0.25))
+                n.vor_pts.add((x + 0.25, y - 0.75))
+    else:
+        n.vor_pts.add((x + 0.5, y - 0.5))
+
+    dnrt = get_node(x-1, y-1, im)
+    if dnrt is not None:
+        if dnrt in n.neighbours:
+            if dn_in_neighbours and not rt_in_neighbours:
+                n.vor_pts.add((x + 0.75, y + 0.25))
+            elif rt_in_neighbours and not dn_in_neighbours:
+                n.vor_pts.add((x + 0.25, y + 0.75))
+            else:
+                n.vor_pts.add((x + 0.75, y + 0.25))
+                n.vor_pts.add((x + 0.25, y + 0.75))
+    else:
+        n.vor_pts.add((x + 0.5, y + 0.5))
+
+# similarity graph is now planar
+# now construct the simplified voronoi diagram
+for x in xrange(w):
+    for y in xrange(h):
+        find_all_voronoi_points(x, y, im)
