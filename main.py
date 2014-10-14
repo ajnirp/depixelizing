@@ -138,8 +138,8 @@ for x in xrange(w):
 # then add the two half-curve lengths (plus 1) to get the length of the entire curve
 def overall_curve_len(node1, node2):
     # print node1.get_xy(), node2.get_xy(),
-    assert(node1 in node2.neighbours)
-    assert(node2 in node1.neighbours)
+    assert node1 in node2.neighbours
+    assert node2 in node1.neighbours
     curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
     # print curve_len
     return curve_len
@@ -147,13 +147,13 @@ def overall_curve_len(node1, node2):
 # node1 is the node we start exploring from
 # node2 is the other node
 def half_curve_len(node1, node2):
-    assert(node1 in node2.neighbours)
-    assert(node2 in node1.neighbours)
+    assert node1 in node2.neighbours
+    assert node2 in node1.neighbours
     # early exit - node1 does not have valence 2
     # so no point exploring further
     if len(node1.neighbours) != 2:
         return 0
-    assert(len(node1.neighbours) == 2)
+    assert len(node1.neighbours) == 2
     current, previous = node1, node2
     # we store the nodes encountered thus far to detect cycles
     # otherwise, we would loop forever if we enter a cycle
@@ -355,6 +355,52 @@ def find_all_voronoi_points(x, y, im):
                 n.vor_pts.add((x + 0.25, y + 0.75))
     else:
         n.vor_pts.add((x + 0.5, y + 0.5))
+
+# find the convex hull of a bunch of points represented as 2-tuples
+# we use the Jarvis march: http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
+def convex_hull(pts):
+    result = []
+
+    pts_list = list(pts)
+
+    # first, find the leftmost point
+    point_on_hull = sorted(pts_list, key=lambda x: x[0])[0]
+
+    endpoint = None
+    # note: python copies tuples. no need to worry about references here
+    while True:
+        result.append(point_on_hull)
+        endpoint = pts_list[0]
+        for j in xrange(1, len(pts_list)):
+            if endpoint == point_on_hull or is_to_the_left(pts_list[j], result[-1], endpoint):
+                endpoint = pts_list[j]
+        point_on_hull = endpoint
+        if endpoint == result[0]:
+            break
+
+    return result
+
+# is a to the left of the line from b to c as seen from b?
+# http://kukuruku.co/hub/algorithms/a-point-localization-in-a-polygon
+def is_to_the_left(a, b, c):
+    bc = (c[0] - b[0], c[1] - b[1]) # vector from b to c
+    ca = (a[0] - c[0], a[1] - c[1]) # vector from c to a
+    return bc[0]*ca[1] - bc[1]*ca[0] > 0
+
+'''tests'''
+def test_is_to_the_left():
+    assert is_to_the_left((-1,1), (0,0), (1,1)) is True
+    assert is_to_the_left((0,0), (0,0), (1,1)) is False
+    assert is_to_the_left((2,2), (0,0), (1,1)) is False
+    assert is_to_the_left((-0.6,-0.4), (0,0), (1,1)) is True
+
+def test_convex_hull():
+    pts1 = {(0,0), (0.5,0.25), (0.75,0.25), (1,0), (0.75,0.75), (0.5,0.75), (0,1), (0.25,0.5)}
+    cvh1 = {(0, 1), (0.75, 0.75), (1, 0), (0, 0)}
+    assert set(convex_hull(pts1)) == cvh1
+
+test_is_to_the_left()
+test_convex_hull()
 
 # similarity graph is now planar
 # now construct the simplified voronoi diagram
