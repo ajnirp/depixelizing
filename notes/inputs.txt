@@ -1,3 +1,11 @@
 all inputs are located at: http://research.microsoft.com/en-us/um/people/kopf/pixelart/supplementary/multi_comparison.html
 
-in smw_boo.png, the outline of the body has length 43 and there are 19 diagonals
+in smw_boo.png, the outline of the body has length 43 and there are 19 diagonals - curves heuristic
+in 8x8.png, the top left pink pixel in the two diagonals is (7,10). There are 41 white pixels and 5 pink pixels, however, the white pixels are connected to the gray pixels which in turn are connected to the dark gray pixels, so effectively the size of the white connected component is 56 (64 total pixels - 5 pink pixels - 3 black pixels) - sparse heuristic
+
+for direct simplified voronoi construction
+<number of neighbours> <number of cases, excluding rotational and reflectional symmetry>
+1 1
+2 4 (angle between the two can be 45 90 135 or 180)
+3 
+8 1
