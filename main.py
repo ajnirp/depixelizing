@@ -14,7 +14,7 @@ class Node(object):
         # ALL voronoi cell points
         # we take the convex hull of these to get
         # the actual voronoi cell points
-        self.vor_pts = set([])
+        self.vor_pts = []
 
     # connect two nodes
     def make_conn(self, n):
@@ -276,30 +276,30 @@ def find_all_voronoi_points(x, y, im):
     up = get_node(x, y-1, im)
     if up is not None:
         if up not in n.neighbours:
-            n.vor_pts.add((x, y - 0.25))
+            n.vor_pts.append((x, y - 0.25))
     else:
-        n.vor_pts.add((x, y - 0.5))
+        n.vor_pts.append((x, y - 0.5))
 
     dn = get_node(x, y+1, im)
     if dn is not None:
         if dn not in n.neighbours:
-            n.vor_pts.add((x, y + 0.25))
+            n.vor_pts.append((x, y + 0.25))
     else:
-        n.vor_pts.add((x, y + 0.5))
+        n.vor_pts.append((x, y + 0.5))
 
     lt = get_node(x, y-1, im)
     if lt is not None:
         if lt not in n.neighbours:
-            n.vor_pts.add((x - 0.25, y))
+            n.vor_pts.append((x - 0.25, y))
     else:
-        n.vor_pts.add((x - 0.5, y))
+        n.vor_pts.append((x - 0.5, y))
 
     rt = get_node(x, y-1, im)
     if rt is not None:
         if rt not in n.neighbours:
-            n.vor_pts.add((x + 0.25, y))
+            n.vor_pts.append((x + 0.25, y))
     else:
-        n.vor_pts.add((x + 0.5, y))
+        n.vor_pts.append((x + 0.5, y))
 
     # next, the diagonal neighbours
     up_in_neighbours = up is not None and up in n.neighbours
@@ -310,76 +310,76 @@ def find_all_voronoi_points(x, y, im):
     uplt = get_node(x-1, y-1, im)
     if uplt is not None:
         if uplt in n.neighbours:
-            n.vor_pts.add(x - 0.5, y - 0.5)
+            n.vor_pts.append((x - 0.5, y - 0.5))
             if up_in_neighbours and not lt_in_neighbours:
-                n.vor_pts.add((x - 0.75, y - 0.25))
+                n.vor_pts.append((x - 0.75, y - 0.25))
             elif lt_in_neighbours and not up_in_neighbours:
-                n.vor_pts.add((x - 0.25, y - 0.75))
+                n.vor_pts.append((x - 0.25, y - 0.75))
             else:
-                n.vor_pts.add((x - 0.75, y - 0.25))
-                n.vor_pts.add((x - 0.25, y - 0.75))
+                n.vor_pts.append((x - 0.75, y - 0.25))
+                n.vor_pts.append((x - 0.25, y - 0.75))
         else:
             if up in lt.neighbours:
                 # assert lt in up.neighbours
-                n.vor_pts(x - 0.25, y - 0.25)
+                n.vor_pts.append((x - 0.25, y - 0.25))
             else:
-                n.vor_pts(x - 0.5, y - 0.5)
+                n.vor_pts.append((x - 0.5, y - 0.5))
     else:
-        n.vor_pts.add((x - 0.5, y - 0.5))
+        n.vor_pts.append((x - 0.5, y - 0.5))
 
     dnlt = get_node(x+1, y-1, im)
     if dnlt is not None:
         if dnlt in n.neighbours:
             if dn_in_neighbours and not lt_in_neighbours:
-                n.vor_pts.add((x - 0.75, y + 0.25))
+                n.vor_pts.append((x - 0.75, y + 0.25))
             elif lt_in_neighbours and not dn_in_neighbours:
-                n.vor_pts.add((x - 0.25, y + 0.75))
+                n.vor_pts.append((x - 0.25, y + 0.75))
             else:
-                n.vor_pts.add((x - 0.75, y + 0.25))
-                n.vor_pts.add((x - 0.25, y + 0.75))
+                n.vor_pts.append((x - 0.75, y + 0.25))
+                n.vor_pts.append((x - 0.25, y + 0.75))
         else:
             if dn in lt.neighbours:
-                n.vor_pts(x - 0.25, y + 0.25)
+                n.vor_pts.append((x - 0.25, y + 0.25))
             else:
-                n.vor_pts(x - 0.5, y + 0.5)
+                n.vor_pts.append((x - 0.5, y + 0.5))
     else:
-        n.vor_pts.add((x - 0.5, y + 0.5))
+        n.vor_pts.append((x - 0.5, y + 0.5))
 
     uprt = get_node(x-1, y-1, im)
     if uprt is not None:
         if uprt in n.neighbours:
             if up_in_neighbours and not rt_in_neighbours:
-                n.vor_pts.add((x + 0.75, y - 0.25))
+                n.vor_pts.append((x + 0.75, y - 0.25))
             elif rt_in_neighbours and not up_in_neighbours:
-                n.vor_pts.add((x + 0.25, y - 0.75))
+                n.vor_pts.append((x + 0.25, y - 0.75))
             else:
-                n.vor_pts.add((x + 0.75, y - 0.25))
-                n.vor_pts.add((x + 0.25, y - 0.75))
+                n.vor_pts.append((x + 0.75, y - 0.25))
+                n.vor_pts.append((x + 0.25, y - 0.75))
         else:
             if up in rt.neighbours:
-                n.vor_pts(x + 0.25, y + 0.25)
+                n.vor_pts.append((x + 0.25, y + 0.25))
             else:
-                n.vor_pts(x + 0.5, y + 0.5)
+                n.vor_pts.append((x + 0.5, y + 0.5))
     else:
-        n.vor_pts.add((x + 0.5, y - 0.5))
+        n.vor_pts.append((x + 0.5, y - 0.5))
 
     dnrt = get_node(x-1, y-1, im)
     if dnrt is not None:
         if dnrt in n.neighbours:
             if dn_in_neighbours and not rt_in_neighbours:
-                n.vor_pts.add((x + 0.75, y + 0.25))
+                n.vor_pts.append((x + 0.75, y + 0.25))
             elif rt_in_neighbours and not dn_in_neighbours:
-                n.vor_pts.add((x + 0.25, y + 0.75))
+                n.vor_pts.append((x + 0.25, y + 0.75))
             else:
-                n.vor_pts.add((x + 0.75, y + 0.25))
-                n.vor_pts.add((x + 0.25, y + 0.75))
+                n.vor_pts.append((x + 0.75, y + 0.25))
+                n.vor_pts.append((x + 0.25, y + 0.75))
         else:
             if dn in rt.neighbours:
-                n.vor_pts(x + 0.25, y + 0.25)
+                n.vor_pts.append((x + 0.25, y + 0.25))
             else:
-                n.vor_pts(x + 0.5, y + 0.5)
+                n.vor_pts.append((x + 0.5, y + 0.5))
     else:
-        n.vor_pts.add((x + 0.5, y + 0.5))
+        n.vor_pts.append((x + 0.5, y + 0.5))
 
 # find the convex hull of a bunch of points represented as 2-tuples
 # we use the Jarvis march: http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
@@ -387,20 +387,19 @@ def convex_hull(pts):
     if len(pts) == 0:
         return []
 
-    pts_list = list(pts)
     result = []
 
     # first, find the leftmost point
-    point_on_hull = sorted(pts_list, key=lambda x: x[0])[0]
+    point_on_hull = sorted(pts, key=lambda x: x[0])[0]
 
     endpoint = None
     # note: python copies tuples. no need to worry about references here
     while True:
         result.append(point_on_hull)
-        endpoint = pts_list[0]
-        for j in xrange(1, len(pts_list)):
-            if endpoint == point_on_hull or is_to_the_left(pts_list[j], result[-1], endpoint):
-                endpoint = pts_list[j]
+        endpoint = pts[0]
+        for j in xrange(1, len(pts)):
+            if endpoint == point_on_hull or is_to_the_left(pts[j], result[-1], endpoint):
+                endpoint = pts[j]
         point_on_hull = endpoint
         if endpoint == result[0]:
             break
@@ -422,7 +421,7 @@ def test_is_to_the_left():
     assert is_to_the_left((-0.6,-0.4), (0,0), (1,1)) is True
 
 def test_convex_hull():
-    pts1 = {(0,0), (0.5,0.25), (0.75,0.25), (1,0), (0.75,0.75), (0.5,0.75), (0,1), (0.25,0.5)}
+    pts1 = [(0,0), (0.5,0.25), (0.75,0.25), (1,0), (0.75,0.75), (0.5,0.75), (0,1), (0.25,0.5)]
     cvh1 = {(0, 1), (0.75, 0.75), (1, 0), (0, 0)}
     assert set(convex_hull(pts1)) == cvh1
 
@@ -435,4 +434,4 @@ for x in xrange(w):
     for y in xrange(h):
         find_all_voronoi_points(x, y, im)
         n = get_node(x, y, im)
-        n.vor_pts = set(convex_hull(n.vor_pts))
+        n.vor_pts = convex_hull(n.vor_pts)
