@@ -4,6 +4,10 @@
 import sys
 import Image
 
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+
 class Node(object):
     def __init__(self, image, x, y, rgb):
         self.image = image
@@ -427,6 +431,47 @@ def test_convex_hull():
 
 test_is_to_the_left()
 test_convex_hull()
+
+'''rendering code'''
+# http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
+
+def init_original(im, nearest_neighbour_scale):
+    w, h = im.size
+    w *= nearest_neighbour_scale
+    h *= nearest_neighbour_scale
+    glClearColor(1.0, 1.0, 1.0, 0.0)
+    glColor3f(0.0, 0.0, 0.0)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluOrtho2D(0, w, 0, h)
+
+def display_original():
+    glClear(GL_COLOR_BUFFER_BIT)
+    glBegin(GL_POINTS)
+    # TODO
+    glEnd()
+    glFlush()
+
+def render_original(im, nearest_neighbour_scale):
+    glutInit()
+    w, h = im.size
+    glutInitWindowSize(w * nearest_neighbour_scale, h * nearest_neighbour_scale)
+    glutCreateWindow('Original Image')
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutDisplayFunc(displayFun)
+    init_original(im, nearest_neighbour_scale)
+    glutMainLoop()
+
+def render_voronoi():
+    pass
+
+def render_b_splines():
+    pass
+
+def render_b_splines_optimized():
+    pass
+
+'''rendering over'''
 
 # similarity graph is now planar
 # now construct the simplified voronoi diagram
