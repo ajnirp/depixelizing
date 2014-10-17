@@ -1,0 +1,12 @@
+horizontal/vertical half edge
+	exists: don't add anything
+	else: node at 1/4 dist. along the HE
+diagonal half edge:
+	with upper-left nbr.
+		no edge: only 1 point; where?
+			quarter distances away if no gap
+			#connection
+		else: one or two points:
+			up&left or neither hvHEs: figure 4
+			else: figure 6
+	...three symmetric cases

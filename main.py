@@ -2,7 +2,9 @@
 # e.g. python main.py img/smw2_yoshi_01.png
 
 import sys
-import Image
+if sys.platform == "darwin":
+    from PIL import Image
+else: import Image
 
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -266,9 +268,11 @@ for x in xrange(w-1):
             else:
                 keep_diag1 -= component_size_difference
             # islands heuristic
-            if (len(n.neighbours) == 1 or len(rightdown.neighbours) == 1) and len(right.neighbours) != 1 and len(down.neighbours) != 1:
+            if (len(n.neighbours) == 1 or len(rightdown.neighbours) == 1) and \
+                    len(right.neighbours) != 1 and len(down.neighbours) != 1:
                 keep_diag1 += 5
-            elif len(n.neighbours) != 1 and len(rightdown.neighbours) != 1 and (len(right.neighbours) == 1 or len(down.neighbours) == 1):
+            elif len(n.neighbours) != 1 and len(rightdown.neighbours) != 1 and \
+                    (len(right.neighbours) == 1 or len(down.neighbours) == 1):
                 keep_diag1 -= 5
 
 def find_all_voronoi_points(x, y, im):
