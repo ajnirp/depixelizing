@@ -2,9 +2,11 @@
 # e.g. python main.py img/smw2_yoshi_01.png
 
 import sys
+
 if sys.platform == "darwin":
     from PIL import Image
-else: import Image
+else:
+    import Image
 
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -36,7 +38,13 @@ class Node(object):
     def get_xy(self):
         return (self.x, self.y)
 
+    def print_neighbours(self):
+        print [ne.get_xy() for ne in self.neighbours]
+
 imagename = 'img/smw_boo.png'
+imagename = 'img/invaders_02.png'
+imagename = 'img/invaders_01.png'
+imagename = 'img/smw2_koopa.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -275,12 +283,30 @@ for x in xrange(w-1):
                     (len(right.neighbours) == 1 or len(down.neighbours) == 1):
                 keep_diag1 -= 5
 
+            if keep_diag1 >= 0:
+                right.remove_conn(down)
+            else:
+                n.remove_conn(rightdown)
+
+# test that the graph is planar
+def test_graph_is_planar(im, nodes):
+    for x in xrange(w-1):
+        for y in xrange(h-1):
+            n = get_node(x, y, im)
+            right = get_node(x+1, y, im)
+            down = get_node(x, y+1, im)
+            rightdown = get_node(x+1, y+1, im)
+            if n in rightdown.neighbours and right in down.neighbours:
+                print n.get_xy()
+
+test_graph_is_planar(im, nodes)
+
 def find_all_voronoi_points(x, y, im):
     # x, y = 0, 0 is the topleft pixel
     n = get_node(x, y, im)
 
     x_center = x + 0.5
-    y_center = y - 0.5
+    y_center = y + 0.5
 
     # for each of the eight directions, decide
     # where to put points, if at all
@@ -322,18 +348,13 @@ def find_all_voronoi_points(x, y, im):
     uplt = get_node(x-1, y-1, im)
     if uplt is not None:
         if uplt in n.neighbours:
-            if up_in_neighbours and not lt_in_neighbours:
+            n.vor_pts.append((x_center - 0.75, y_center - 0.25))
+            n.vor_pts.append((x_center - 0.25, y_center - 0.75))
+            if (up_in_neighbours and not lt_in_neighbours) or \
+                    (lt_in_neighbours and not up_in_neighbours):
                 n.vor_pts.append((x_center - 0.5, y_center - 0.5))
-                n.vor_pts.append((x_center - 0.75, y_center - 0.25))
-            elif lt_in_neighbours and not up_in_neighbours:
-                n.vor_pts.append((x_center - 0.5, y_center - 0.5))
-                n.vor_pts.append((x_center - 0.25, y_center - 0.75))
-            else:
-                n.vor_pts.append((x_center - 0.75, y_center - 0.25))
-                n.vor_pts.append((x_center - 0.25, y_center - 0.75))
         else:
             if up in lt.neighbours:
-                assert lt in up.neighbours
                 n.vor_pts.append((x_center - 0.25, y_center - 0.25))
             else:
                 n.vor_pts.append((x_center - 0.5, y_center - 0.5))
@@ -343,18 +364,13 @@ def find_all_voronoi_points(x, y, im):
     dnlt = get_node(x-1, y+1, im)
     if dnlt is not None:
         if dnlt in n.neighbours:
-            if dn_in_neighbours and not lt_in_neighbours:
+            n.vor_pts.append((x_center - 0.75, y_center + 0.25))
+            n.vor_pts.append((x_center - 0.25, y_center + 0.75))
+            if (dn_in_neighbours and not lt_in_neighbours) or \
+                    (lt_in_neighbours and not dn_in_neighbours):
                 n.vor_pts.append((x_center - 0.5, y_center + 0.5))
-                n.vor_pts.append((x_center - 0.75, y_center + 0.25))
-            elif lt_in_neighbours and not dn_in_neighbours:
-                n.vor_pts.append((x_center - 0.5, y_center + 0.5))
-                n.vor_pts.append((x_center - 0.25, y_center + 0.75))
-            else:
-                n.vor_pts.append((x_center - 0.75, y_center + 0.25))
-                n.vor_pts.append((x_center - 0.25, y_center + 0.75))
         else:
             if dn in lt.neighbours:
-                assert lt in dn.neighbours
                 n.vor_pts.append((x_center - 0.25, y_center + 0.25))
             else:
                 n.vor_pts.append((x_center - 0.5, y_center + 0.5))
@@ -364,18 +380,13 @@ def find_all_voronoi_points(x, y, im):
     uprt = get_node(x+1, y-1, im)
     if uprt is not None:
         if uprt in n.neighbours:
-            if up_in_neighbours and not rt_in_neighbours:
+            n.vor_pts.append((x_center + 0.75, y_center - 0.25))
+            n.vor_pts.append((x_center + 0.25, y_center - 0.75))
+            if (up_in_neighbours and not rt_in_neighbours) or \
+                    (rt_in_neighbours and not up_in_neighbours):
                 n.vor_pts.append((x_center + 0.5, y_center - 0.5))
-                n.vor_pts.append((x_center + 0.75, y_center - 0.25))
-            elif rt_in_neighbours and not up_in_neighbours:
-                n.vor_pts.append((x_center + 0.5, y_center - 0.5))
-                n.vor_pts.append((x_center + 0.25, y_center - 0.75))
-            else:
-                n.vor_pts.append((x_center + 0.75, y_center - 0.25))
-                n.vor_pts.append((x_center + 0.25, y_center - 0.75))
         else:
             if up in rt.neighbours:
-                assert rt in up.neighbours
                 n.vor_pts.append((x_center + 0.25, y_center - 0.25))
             else:
                 n.vor_pts.append((x_center + 0.5, y_center - 0.5))
@@ -385,23 +396,18 @@ def find_all_voronoi_points(x, y, im):
     dnrt = get_node(x+1, y+1, im)
     if dnrt is not None:
         if dnrt in n.neighbours:
-            if dn_in_neighbours and not rt_in_neighbours:
+            n.vor_pts.append((x_center + 0.75, y_center + 0.25))
+            n.vor_pts.append((x_center + 0.25, y_center + 0.75))
+            if (dn_in_neighbours and not rt_in_neighbours) or \
+                    (rt_in_neighbours and not dn_in_neighbours):
                 n.vor_pts.append((x_center + 0.5, y_center + 0.5))
-                n.vor_pts.append((x_center + 0.75, y_center + 0.25))
-            elif rt_in_neighbours and not dn_in_neighbours:
-                n.vor_pts.append((x_center + 0.5, y_center + 0.5))
-                n.vor_pts.append((x_center + 0.25, y_center + 0.75))
-            else:
-                n.vor_pts.append((x_center + 0.75, y_center + 0.25))
-                n.vor_pts.append((x_center + 0.25, y_center + 0.75))
         else:
             if dn in rt.neighbours:
-                assert rt in dn.neighbours
                 n.vor_pts.append((x_center + 0.25, y_center + 0.25))
             else:
                 n.vor_pts.append((x_center + 0.5, y_center + 0.5))
     else:
-        n.vor_pts.append((x + 0.5, y + 0.5))
+        n.vor_pts.append((x_center + 0.5, y_center + 0.5))
 
 # find the convex hull of a bunch of points represented as 2-tuples
 # we use the Jarvis march: http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
@@ -430,17 +436,21 @@ def convex_hull(pts):
 
 # is a to the left of the line from b to c as seen from b?
 # http://kukuruku.co/hub/algorithms/a-point-localization-in-a-polygon
+# note: the PIL system is left-handed, so the > must be replaced by a <
+# OpenGL on the other hand is right-handed
 def is_to_the_left(a, b, c):
     bc = (c[0] - b[0], c[1] - b[1]) # vector from b to c
     ca = (a[0] - c[0], a[1] - c[1]) # vector from c to a
-    return bc[0]*ca[1] - bc[1]*ca[0] > 0
+    return bc[0]*ca[1] - bc[1]*ca[0] < 0
 
 '''tests'''
+# remember, our system is left-handed
+# (0, 0) is the topleft pixel, not the bottomleft pixel
 def test_is_to_the_left():
-    assert is_to_the_left((-1,1), (0,0), (1,1)) is True
+    assert is_to_the_left((-1,1), (0,0), (1,1)) is False
     assert is_to_the_left((0,0), (0,0), (1,1)) is False
     assert is_to_the_left((2,2), (0,0), (1,1)) is False
-    assert is_to_the_left((-0.6,-0.4), (0,0), (1,1)) is True
+    assert is_to_the_left((-0.6,-0.4), (0,0), (1,1)) is False
 
 def test_convex_hull():
     pts1 = [(0,0), (0.5,0.25), (0.75,0.25), (1,0), (0.75,0.75), (0.5,0.75), (0,1), (0.25,0.5)]
@@ -517,13 +527,13 @@ def display_voronoi():
             r, g, b = n.rgb
             glColor3ub(r, g, b)
             glBegin(GL_POLYGON)
-            # print n.vor_pts
+            # glBegin(GL_LINE_LOOP)
             for pt in n.vor_pts:
                 x_pt, y_pt = pt
-                y_pt = h - y_pt - 1
+                y_pt = h - y_pt
                 glVertex2f(16*x_pt, 16*y_pt)
             glEnd()
-            draw_pixel_centre(x, h - y - 1)
+            # draw_pixel_centre(x, h - y - 1)
     glFlush()
 
 def render_voronoi():
@@ -545,13 +555,18 @@ def render_b_splines_optimized():
 
 '''rendering over'''
 
-# similarity graph is now planar
 # now construct the simplified voronoi diagram
 for x in xrange(w):
     for y in xrange(h):
         find_all_voronoi_points(x, y, im)
         n = get_node(x, y, im)
         n.vor_pts = convex_hull(n.vor_pts)
+
+# n = get_node(9,5,im)
+# print n.vor_pts
+# n = get_node(10,6,im)
+# n.print_neighbours()
+# print n.vor_pts
 
 # render_original()
 render_voronoi()
