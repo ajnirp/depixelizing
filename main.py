@@ -435,35 +435,80 @@ test_convex_hull()
 '''rendering code'''
 # http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
 
-def init_original(im, nearest_neighbour_scale):
-    w, h = im.size
-    w *= nearest_neighbour_scale
-    h *= nearest_neighbour_scale
+window_id = -1
+
+def init_original():
+    global w,h
+    ww = w * 16
+    hh = h * 16
     glClearColor(1.0, 1.0, 1.0, 0.0)
     glColor3f(0.0, 0.0, 0.0)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    gluOrtho2D(0, w, 0, h)
+    gluOrtho2D(0, ww, 0, hh)
 
 def display_original():
-    glClear(GL_COLOR_BUFFER_BIT)
-    glBegin(GL_POINTS)
-    # TODO
-    glEnd()
+    global im
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    for x in xrange(w):
+        for y in xrange(h):
+            r, g, b = get_node(x, y, im).rgb
+            y = h - y - 1
+            glColor3ub(r, g, b)
+            glBegin(GL_QUADS)
+            glVertex2f(16*x, 16*y)
+            glVertex2f(16*(x+1), 16*y)
+            glVertex2f(16*(x+1), 16*(y+1))
+            glVertex2f(16*x, 16*(y+1))
+            glEnd()
     glFlush()
 
-def render_original(im, nearest_neighbour_scale):
+def keyboard_original(key, x, y):
+    global window_id
+    if key == chr(27):
+        glutDestroyWindow(window_id)
+
+def render_original():
+    global window_id
     glutInit()
-    w, h = im.size
-    glutInitWindowSize(w * nearest_neighbour_scale, h * nearest_neighbour_scale)
-    glutCreateWindow('Original Image')
+    glutInitWindowSize(w * 16, h * 16)
+    window_id = glutCreateWindow('Original Image')
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(displayFun)
-    init_original(im, nearest_neighbour_scale)
+    glutDisplayFunc(display_original)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
     glutMainLoop()
 
+def display_voronoi():
+    global im
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    for x in xrange(w):
+        for y in xrange(h):
+            n = get_node(x, y, im)
+            r, g, b = n.rgb
+            glColor3ub(r, g, b)
+            glBegin(GL_POLYGON)
+            for pt in n.vor_pts:
+                x_pt, y_pt = pt
+                x_pt *= 16
+                y_pt *= 16
+                y_pt = h - y_pt - 1
+                glVertex2f(16*x_pt, 16*y_pt)
+            glEnd()
+    glFlush()
+
 def render_voronoi():
-    pass
+    global window_id
+    glutInit()
+    glutInitWindowSize(w * 16, h * 16)
+    window_id = glutCreateWindow('Voronoi Image')
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutDisplayFunc(display_voronoi)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
+    glutMainLoop()
 
 def render_b_splines():
     pass
@@ -472,6 +517,9 @@ def render_b_splines_optimized():
     pass
 
 '''rendering over'''
+
+render_original()
+# render_voronoi()
 
 # similarity graph is now planar
 # now construct the simplified voronoi diagram
