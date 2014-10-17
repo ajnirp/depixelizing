@@ -4,9 +4,13 @@ horizontal/vertical half edge
 diagonal half edge:
 	with upper-left nbr.
 		no edge: only 1 point; where?
-			quarter distances away if no gap
-			#connection
-		else: one or two points:
-			up&left or neither hvHEs: figure 4
-			else: figure 6
+			if upper and left are connected to each other:
+				quarter distances away
+			else:
+				place it at upper-left corner of pixel
+		else:
+			(both self-up and self-left) or (neither):
+				figure 4b
+			else:
+				figure 6
 	...three symmetric cases

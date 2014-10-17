@@ -276,7 +276,11 @@ for x in xrange(w-1):
                 keep_diag1 -= 5
 
 def find_all_voronoi_points(x, y, im):
+    # x, y = 0, 0 is the topleft pixel
     n = get_node(x, y, im)
+
+    x_center = x + 0.5
+    y_center = y - 0.5
 
     # for each of the eight directions, decide
     # where to put points, if at all
@@ -284,30 +288,30 @@ def find_all_voronoi_points(x, y, im):
     up = get_node(x, y-1, im)
     if up is not None:
         if up not in n.neighbours:
-            n.vor_pts.append((x, y - 0.25))
+            n.vor_pts.append((x_center, y_center - 0.25))
     else:
-        n.vor_pts.append((x, y - 0.5))
+        n.vor_pts.append((x_center, y_center - 0.5))
 
     dn = get_node(x, y+1, im)
     if dn is not None:
         if dn not in n.neighbours:
-            n.vor_pts.append((x, y + 0.25))
+            n.vor_pts.append((x_center, y_center + 0.25))
     else:
-        n.vor_pts.append((x, y + 0.5))
+        n.vor_pts.append((x_center, y_center + 0.5))
 
-    lt = get_node(x, y-1, im)
+    lt = get_node(x-1, y, im)
     if lt is not None:
         if lt not in n.neighbours:
-            n.vor_pts.append((x - 0.25, y))
+            n.vor_pts.append((x_center - 0.25, y_center))
     else:
-        n.vor_pts.append((x - 0.5, y))
+        n.vor_pts.append((x_center - 0.5, y_center))
 
-    rt = get_node(x, y-1, im)
+    rt = get_node(x+1, y, im)
     if rt is not None:
         if rt not in n.neighbours:
-            n.vor_pts.append((x + 0.25, y))
+            n.vor_pts.append((x_center + 0.25, y_center))
     else:
-        n.vor_pts.append((x + 0.5, y))
+        n.vor_pts.append((x_center + 0.5, y_center))
 
     # next, the diagonal neighbours
     up_in_neighbours = up is not None and up in n.neighbours
@@ -318,74 +322,84 @@ def find_all_voronoi_points(x, y, im):
     uplt = get_node(x-1, y-1, im)
     if uplt is not None:
         if uplt in n.neighbours:
-            n.vor_pts.append((x - 0.5, y - 0.5))
             if up_in_neighbours and not lt_in_neighbours:
-                n.vor_pts.append((x - 0.75, y - 0.25))
+                n.vor_pts.append((x_center - 0.5, y_center - 0.5))
+                n.vor_pts.append((x_center - 0.75, y_center - 0.25))
             elif lt_in_neighbours and not up_in_neighbours:
-                n.vor_pts.append((x - 0.25, y - 0.75))
+                n.vor_pts.append((x_center - 0.5, y_center - 0.5))
+                n.vor_pts.append((x_center - 0.25, y_center - 0.75))
             else:
-                n.vor_pts.append((x - 0.75, y - 0.25))
-                n.vor_pts.append((x - 0.25, y - 0.75))
+                n.vor_pts.append((x_center - 0.75, y_center - 0.25))
+                n.vor_pts.append((x_center - 0.25, y_center - 0.75))
         else:
             if up in lt.neighbours:
-                # assert lt in up.neighbours
-                n.vor_pts.append((x - 0.25, y - 0.25))
+                assert lt in up.neighbours
+                n.vor_pts.append((x_center - 0.25, y_center - 0.25))
             else:
-                n.vor_pts.append((x - 0.5, y - 0.5))
+                n.vor_pts.append((x_center - 0.5, y_center - 0.5))
     else:
-        n.vor_pts.append((x - 0.5, y - 0.5))
+        n.vor_pts.append((x_center - 0.5, y_center - 0.5))
 
-    dnlt = get_node(x+1, y-1, im)
+    dnlt = get_node(x-1, y+1, im)
     if dnlt is not None:
         if dnlt in n.neighbours:
             if dn_in_neighbours and not lt_in_neighbours:
-                n.vor_pts.append((x - 0.75, y + 0.25))
+                n.vor_pts.append((x_center - 0.5, y_center + 0.5))
+                n.vor_pts.append((x_center - 0.75, y_center + 0.25))
             elif lt_in_neighbours and not dn_in_neighbours:
-                n.vor_pts.append((x - 0.25, y + 0.75))
+                n.vor_pts.append((x_center - 0.5, y_center + 0.5))
+                n.vor_pts.append((x_center - 0.25, y_center + 0.75))
             else:
-                n.vor_pts.append((x - 0.75, y + 0.25))
-                n.vor_pts.append((x - 0.25, y + 0.75))
+                n.vor_pts.append((x_center - 0.75, y_center + 0.25))
+                n.vor_pts.append((x_center - 0.25, y_center + 0.75))
         else:
             if dn in lt.neighbours:
-                n.vor_pts.append((x - 0.25, y + 0.25))
+                assert lt in dn.neighbours
+                n.vor_pts.append((x_center - 0.25, y_center + 0.25))
             else:
-                n.vor_pts.append((x - 0.5, y + 0.5))
+                n.vor_pts.append((x_center - 0.5, y_center + 0.5))
     else:
-        n.vor_pts.append((x - 0.5, y + 0.5))
+        n.vor_pts.append((x_center - 0.5, y_center + 0.5))
 
-    uprt = get_node(x-1, y-1, im)
+    uprt = get_node(x+1, y-1, im)
     if uprt is not None:
         if uprt in n.neighbours:
             if up_in_neighbours and not rt_in_neighbours:
-                n.vor_pts.append((x + 0.75, y - 0.25))
+                n.vor_pts.append((x_center + 0.5, y_center - 0.5))
+                n.vor_pts.append((x_center + 0.75, y_center - 0.25))
             elif rt_in_neighbours and not up_in_neighbours:
-                n.vor_pts.append((x + 0.25, y - 0.75))
+                n.vor_pts.append((x_center + 0.5, y_center - 0.5))
+                n.vor_pts.append((x_center + 0.25, y_center - 0.75))
             else:
-                n.vor_pts.append((x + 0.75, y - 0.25))
-                n.vor_pts.append((x + 0.25, y - 0.75))
+                n.vor_pts.append((x_center + 0.75, y_center - 0.25))
+                n.vor_pts.append((x_center + 0.25, y_center - 0.75))
         else:
             if up in rt.neighbours:
-                n.vor_pts.append((x + 0.25, y + 0.25))
+                assert rt in up.neighbours
+                n.vor_pts.append((x_center + 0.25, y_center - 0.25))
             else:
-                n.vor_pts.append((x + 0.5, y + 0.5))
+                n.vor_pts.append((x_center + 0.5, y_center - 0.5))
     else:
-        n.vor_pts.append((x + 0.5, y - 0.5))
+        n.vor_pts.append((x_center + 0.5, y_center - 0.5))
 
-    dnrt = get_node(x-1, y-1, im)
+    dnrt = get_node(x+1, y+1, im)
     if dnrt is not None:
         if dnrt in n.neighbours:
             if dn_in_neighbours and not rt_in_neighbours:
-                n.vor_pts.append((x + 0.75, y + 0.25))
+                n.vor_pts.append((x_center + 0.5, y_center + 0.5))
+                n.vor_pts.append((x_center + 0.75, y_center + 0.25))
             elif rt_in_neighbours and not dn_in_neighbours:
-                n.vor_pts.append((x + 0.25, y + 0.75))
+                n.vor_pts.append((x_center + 0.5, y_center + 0.5))
+                n.vor_pts.append((x_center + 0.25, y_center + 0.75))
             else:
-                n.vor_pts.append((x + 0.75, y + 0.25))
-                n.vor_pts.append((x + 0.25, y + 0.75))
+                n.vor_pts.append((x_center + 0.75, y_center + 0.25))
+                n.vor_pts.append((x_center + 0.25, y_center + 0.75))
         else:
             if dn in rt.neighbours:
-                n.vor_pts.append((x + 0.25, y + 0.25))
+                assert rt in dn.neighbours
+                n.vor_pts.append((x_center + 0.25, y_center + 0.25))
             else:
-                n.vor_pts.append((x + 0.5, y + 0.5))
+                n.vor_pts.append((x_center + 0.5, y_center + 0.5))
     else:
         n.vor_pts.append((x + 0.5, y + 0.5))
 
@@ -441,6 +455,13 @@ test_convex_hull()
 
 window_id = -1
 
+def draw_pixel_centre(x,y):
+    # draw centre of each pixel
+    glColor3ub(0, 255, 0)
+    glBegin(GL_POINTS)
+    glVertex2f(16*(x+0.5), 16*(y+0.5))
+    glEnd()
+
 def init_original():
     global w,h
     ww = w * 16
@@ -450,6 +471,7 @@ def init_original():
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluOrtho2D(0, ww, 0, hh)
+    glPointSize(3)
 
 def display_original():
     global im
@@ -466,6 +488,7 @@ def display_original():
             glVertex2f(16*(x+1), 16*(y+1))
             glVertex2f(16*x, 16*(y+1))
             glEnd()
+            draw_pixel_centre(x,y)
     glFlush()
 
 def keyboard_original(key, x, y):
@@ -494,17 +517,17 @@ def display_voronoi():
             r, g, b = n.rgb
             glColor3ub(r, g, b)
             glBegin(GL_POLYGON)
+            # print n.vor_pts
             for pt in n.vor_pts:
                 x_pt, y_pt = pt
-                x_pt *= 16
-                y_pt *= 16
                 y_pt = h - y_pt - 1
                 glVertex2f(16*x_pt, 16*y_pt)
             glEnd()
+            draw_pixel_centre(x, h - y - 1)
     glFlush()
 
 def render_voronoi():
-    global window_id
+    global window_id, w, h
     glutInit()
     glutInitWindowSize(w * 16, h * 16)
     window_id = glutCreateWindow('Voronoi Image')
@@ -522,9 +545,6 @@ def render_b_splines_optimized():
 
 '''rendering over'''
 
-render_original()
-# render_voronoi()
-
 # similarity graph is now planar
 # now construct the simplified voronoi diagram
 for x in xrange(w):
@@ -532,3 +552,6 @@ for x in xrange(w):
         find_all_voronoi_points(x, y, im)
         n = get_node(x, y, im)
         n.vor_pts = convex_hull(n.vor_pts)
+
+# render_original()
+render_voronoi()
