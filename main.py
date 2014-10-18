@@ -23,6 +23,11 @@ class Node(object):
         # we take the convex hull of these to get
         # the actual voronoi cell points
         self.vor_pts = []
+        # shape starts from here => 1
+        # shape includes this => 2
+        self.status = 0 # => "unused"
+        # "associated" neighbour nodes
+        self.ann = []
 
     # connect two nodes
     def make_conn(self, n):
@@ -41,9 +46,9 @@ class Node(object):
     def print_neighbours(self):
         print [ne.get_xy() for ne in self.neighbours]
 
-imagename = 'img/smw_boo.png'
-imagename = 'img/invaders_02.png'
-imagename = 'img/invaders_01.png'
+# imagename = 'img/smw_boo.png'
+# imagename = 'img/invaders_02.png'
+# imagename = 'img/invaders_01.png'
 imagename = 'img/smw2_koopa.png'
 
 im = Image.open(imagename)
@@ -107,8 +112,6 @@ def number_of_neighbours_is_correct(im):
     for x in xrange(1, w-1):
         for y in xrange(1, h-1):
             assert len(get_node(x, y, im).neighbours) == 8
-
-'''run tests'''
 
 node_corresponds_to_image(im)
 number_of_neighbours_is_correct(im)
@@ -443,7 +446,7 @@ def is_to_the_left(a, b, c):
     ca = (a[0] - c[0], a[1] - c[1]) # vector from c to a
     return bc[0]*ca[1] - bc[1]*ca[0] < 0
 
-'''tests'''
+''' tests '''
 # remember, our system is left-handed
 # (0, 0) is the topleft pixel, not the bottomleft pixel
 def test_is_to_the_left():
@@ -459,6 +462,39 @@ def test_convex_hull():
 
 test_is_to_the_left()
 test_convex_hull()
+''' tests over '''
+
+# now construct the simplified voronoi diagram
+for x in xrange(w):
+    for y in xrange(h):
+        find_all_voronoi_points(x, y, im)
+        n = get_node(x, y, im)
+        n.vor_pts = convex_hull(n.vor_pts)
+
+''' extracting spline curves '''
+def nodes_in_shape (n, x, y):
+    ann = []
+    for i in xrange (x, w):
+        yrange = xrange(h)
+        if i == x:
+            yrange = xrange (y, h)
+        for j in yrange:
+            n2 = get_node(x, y, im)
+            if not pixels_are_dissimilar (n.rgb, n2.rgb):
+                ann.add(n2)
+                n2.status = 2
+                # absolutely wrong
+    return ann
+
+# find all associated polygons
+for x in xrange(w):
+    for y in xrange(h):
+        if n.status == 0:
+            n.ann = nodes_in_shape (n, x, y)
+            n.status = 1
+
+''' b-splines —— optimization '''
+# start here
 
 '''rendering code'''
 # http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
@@ -557,19 +593,6 @@ def render_b_splines_optimized():
     pass
 
 '''rendering over'''
-
-# now construct the simplified voronoi diagram
-for x in xrange(w):
-    for y in xrange(h):
-        find_all_voronoi_points(x, y, im)
-        n = get_node(x, y, im)
-        n.vor_pts = convex_hull(n.vor_pts)
-
-# n = get_node(9,5,im)
-# print n.vor_pts
-# n = get_node(10,6,im)
-# n.print_neighbours()
-# print n.vor_pts
 
 # render_original()
 render_voronoi()
