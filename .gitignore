@@ -1,2 +1,5 @@
 dep_old/
 .DS_Store
+*.c
+*.o
+*.so

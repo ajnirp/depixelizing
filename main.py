@@ -1,5 +1,6 @@
-# usage: python main.py imagefile
-# e.g. python main.py img/smw2_yoshi_01.png
+# usage: python main.py
+# e.g. python main.py
+# to enable inline tests, python main.py --tests
 
 import sys
 
@@ -136,13 +137,10 @@ def test_number_of_neighbours_is_correct(im):
         for y in xrange(1, h-1):
             assert len(get_node(x, y, im).neighbours) == 8
 
-'''run tests'''
-
-test_node_corresponds_to_image(im)
-test_number_of_neighbours_is_correct(im)
-test_neighbours_are_mutual(im)
-
-'''tests over'''
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_node_corresponds_to_image(im)
+    test_number_of_neighbours_is_correct(im)
+    test_neighbours_are_mutual(im)
 
 # convert rgb to yuv
 def rgb2yuv(r,g,b):
@@ -327,7 +325,8 @@ def test_graph_is_planar(im, nodes):
             if n in rightdown.neighbours and right in down.neighbours:
                 print n.get_xy()
 
-test_graph_is_planar(im, nodes)
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_graph_is_planar(im, nodes)
 
 def find_all_voronoi_points(x, y, im):
     # x, y = 0, 0 is the topleft pixel
@@ -485,8 +484,9 @@ def test_convex_hull():
     cvh1 = {(0, 1), (0.75, 0.75), (1, 0), (0, 0)}
     assert set(convex_hull(pts1)) == cvh1
 
-test_is_to_the_left()
-test_convex_hull()
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_is_to_the_left()
+    test_convex_hull()
 
 '''rendering code'''
 # http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
@@ -615,8 +615,9 @@ def test_point_positions():
     if imagename == 'smw_boo.png':
         assert (8.75, 11.75) in points
 
-test_point_positions()
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_point_positions()
 
 # render_original()
-render_voronoi()
+# render_voronoi()
 # note: exits program on mac
