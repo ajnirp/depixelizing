@@ -508,10 +508,13 @@ def display_original():
             # draw_pixel_centre(x,y)
     glFlush()
 
+# note: exits program on mac
 def keyboard_original(key, x, y):
     global window_id
     if key == chr(27):
         glutDestroyWindow(window_id)
+        if sys.platform == "darwin":
+            exit(0)
 
 def render_original():
     global window_id
@@ -575,5 +578,8 @@ for x in xrange(w):
 # n.print_neighbours()
 # print n.vor_pts
 
-render_original()
+# render_original()
 render_voronoi()
+# note: exits program on mac
+
+
