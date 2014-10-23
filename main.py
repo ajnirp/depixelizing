@@ -41,10 +41,17 @@ class Node(object):
     def print_neighbours(self):
         print [ne.get_xy() for ne in self.neighbours]
 
-imagename = 'img/smw_boo.png'
 imagename = 'img/invaders_02.png'
 imagename = 'img/invaders_01.png'
 imagename = 'img/smw2_koopa.png'
+imagename = 'img/sma_chest.png'
+imagename = 'img/smw2_yoshi_02.png'
+imagename = 'img/smw2_yoshi_01.png'
+imagename = 'img/smb_jump.png'
+imagename = 'img/sma_toad.png'
+imagename = 'img/smw_cape_mario_yoshi.png'
+imagename = 'img/sma_peach_01.png'
+imagename = 'img/smw_boo.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -498,7 +505,7 @@ def display_original():
             glVertex2f(16*(x+1), 16*(y+1))
             glVertex2f(16*x, 16*(y+1))
             glEnd()
-            draw_pixel_centre(x,y)
+            # draw_pixel_centre(x,y)
     glFlush()
 
 def keyboard_original(key, x, y):
@@ -568,5 +575,5 @@ for x in xrange(w):
 # n.print_neighbours()
 # print n.vor_pts
 
-# render_original()
+render_original()
 render_voronoi()
