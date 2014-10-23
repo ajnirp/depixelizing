@@ -1,11 +1,11 @@
 1. make a class for polygon points. an object of this class should contain the following data members:
-	a. a list of references to nodes whose voronoi polygons have this point as one of their vertices - this list never changes
-	b. a list of references to VisibleEdges which this point is a part of. this list is initially empty and is filled up in step 3
-	c. a list of neighbour polygon points
-2. enumerate all the polygon points into a global list
+	a. a set of references to nodes whose voronoi polygons have this point as one of their vertices - this set never changes
+	b. a set of references to VisibleEdges which this point is a part of. this set is initially empty and is filled up in step 3
+	c. a set of neighbour polygon points
+2. enumerate all the polygon points into a global dict
 3. for each polygon point:
 	a. if it is already part of a visible edge, do nothing
-	b. if not, find the longest visible edge it is a part of, in the process marking all other polygon points on the edge as belonging to that visible edge.`
+	b. if not, find the longest visible edge it is a part of, in the process marking all other polygon points on the edge as belonging to that visible edge.
 	c. in this way, build up a global list of longest possible visible edges
 d. each edge is an object of the VisibleEdge class, which contains, among other things, references to polygon points
 4. for each edge in the global list of VisibleEdges, obtain the b-spline
