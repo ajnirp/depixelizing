@@ -3,3 +3,4 @@ dep_old/
 *.c
 *.o
 *.so
+a.out
