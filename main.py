@@ -41,6 +41,27 @@ class Node(object):
     def print_neighbours(self):
         print [ne.get_xy() for ne in self.neighbours]
 
+class Point(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        # nodes whose voronoi cells contain this point as a vertex
+        # in other words, the set of nodes that 'own' this point
+        self.nodes = set([])
+        # visible edges that this point is a part of
+        self.vedges = set([])
+        # neighbouring points
+        self.neighbours = set([])
+
+    def add_node(self, n):
+        self.nodes.append(n)
+
+    def add_vedge(self, ve):
+        self.vedges.add(ve)
+
+    def add_neighbour(self, pt):
+        self.neighbours.add(pt)
+
 imagename = 'img/invaders_02.png'
 imagename = 'img/invaders_01.png'
 imagename = 'img/smw2_koopa.png'
@@ -84,19 +105,19 @@ for row in xrange(h):
 
 '''tests'''
 
-def node_corresponds_to_image(im):
+def test_node_corresponds_to_image(im):
     for x in xrange(col):
         for y in xrange(row):
             assert get_node(x,y,im).rgb == im.getpixel((x,y))
 
-def neighbours_are_mutual(im):
+def test_neighbours_are_mutual(im):
     for x in xrange(col):
         for y in xrange(row):
             n = get_node(x,y,im)
             for ne in n.neighbours:
                 assert n in ne.neighbours
 
-def number_of_neighbours_is_correct(im):
+def test_number_of_neighbours_is_correct(im):
     w, h = im.size
     # corner nodes have 3 neighbours
     assert len(get_node(0,   0,   im).neighbours) == 3
@@ -117,9 +138,9 @@ def number_of_neighbours_is_correct(im):
 
 '''run tests'''
 
-node_corresponds_to_image(im)
-number_of_neighbours_is_correct(im)
-neighbours_are_mutual(im)
+test_node_corresponds_to_image(im)
+test_number_of_neighbours_is_correct(im)
+test_neighbours_are_mutual(im)
 
 '''tests over'''
 
@@ -565,21 +586,37 @@ def render_b_splines_optimized():
 
 '''rendering over'''
 
+points = {}
+# points is a dict mapping (x,y) to the Point
+# present there. We could use an array because the
+# Point locations are quantized to quarter-pixels, but there are 4wh possible
+# point locations, which would mean a very sparse array and a lot of wasted
+# memory. So the dict is a better way to store all the Points
+
 # now construct the simplified voronoi diagram
+# and in the process, fill up the global Points map
 for x in xrange(w):
     for y in xrange(h):
         find_all_voronoi_points(x, y, im)
         n = get_node(x, y, im)
         n.vor_pts = convex_hull(n.vor_pts)
+        # create the points
+        for xx, yy in n.vor_pts:
+            if (xx, yy) in points:
+                p = points[(xx, yy)]
+                p.nodes.add(n)
+            else:
+                p = Point(x=xx, y=yy)
+                points[(xx, yy)] = p
+                p.nodes.add(n)
 
-# n = get_node(9,5,im)
-# print n.vor_pts
-# n = get_node(10,6,im)
-# n.print_neighbours()
-# print n.vor_pts
+def test_point_positions():
+    global points, imagename
+    if imagename == 'smw_boo.png':
+        assert (8.75, 11.75) in points
+
+test_point_positions()
 
 # render_original()
 render_voronoi()
 # note: exits program on mac
-
-
