@@ -1,3 +1,3 @@
-import ctypes
+import depix
 
-lib = ctypes.cdll.LoadLibrary('./main.so')
+depix.initdepix()

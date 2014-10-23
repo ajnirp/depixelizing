@@ -13,6 +13,9 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 
+cdef extern from "math.h":
+    float abs(float x)
+
 class Node(object):
     def __init__(self, image, x, y, rgb):
         self.image = image
@@ -63,23 +66,6 @@ class Point(object):
     def add_neighbour(self, pt):
         self.neighbours.add(pt)
 
-imagename = 'img/invaders_02.png'
-imagename = 'img/invaders_01.png'
-imagename = 'img/smw2_koopa.png'
-imagename = 'img/sma_chest.png'
-imagename = 'img/smw2_yoshi_02.png'
-imagename = 'img/smw2_yoshi_01.png'
-imagename = 'img/smb_jump.png'
-imagename = 'img/sma_toad.png'
-imagename = 'img/smw_cape_mario_yoshi.png'
-imagename = 'img/sma_peach_01.png'
-imagename = 'img/smw_boo.png'
-
-im = Image.open(imagename)
-w, h = im.size
-
-nodes = []
-
 # im = image object
 def get_node(x, y, im):
     w, h = im.size
@@ -87,22 +73,6 @@ def get_node(x, y, im):
         return None
     index = x + y * w
     return nodes[index]
-
-# create nodes
-for row in xrange(h):
-    for col in xrange(w):
-        n = Node(image=im, x=col, y=row, rgb=im.getpixel((col, row)))
-        nodes.append(n)
-
-# initialize similarity graph
-for row in xrange(h):
-    for col in xrange(w):
-        n = get_node(col, row, im)
-        for x in [-1,0,1]:
-            for y in [-1,0,1]:
-                if x != 0 or y != 0:
-                    neighbour = get_node(col+x, row+y, im)
-                    n.make_conn(neighbour)
 
 '''tests'''
 
@@ -143,18 +113,20 @@ if len(sys.argv) > 1 and sys.argv[1] == '--tests':
     test_neighbours_are_mutual(im)
 
 # convert rgb to yuv
-def rgb2yuv(r,g,b):
-    r1 = r / 255.0
-    g1 = g / 255.0
-    b1 = b / 255.0
-    y = (0.299 * r1) + (0.587 * g1) + (0.114 * b1)
-    u = 0.492 * (b1 - y)
-    v = 0.877 * (r1 - y)
+def rgb2yuv(float r, float g, float b):
+    cdef float r1 = r / 255.0
+    cdef float g1 = g / 255.0
+    cdef float b1 = b / 255.0
+    cdef float y = (0.299 * r1) + (0.587 * g1) + (0.114 * b1)
+    cdef float u = 0.492 * (b1 - y)
+    cdef float v = 0.877 * (r1 - y)
     return (y, u, v)
 
 # compare YUV values of two pixels, return
 # True if they are different, else False
 def pixels_are_dissimilar(rgb1, rgb2):
+    cdef float r1, g1, b1, r2, g2, b2
+    cdef float y1, u1, v1, y2, u2, v2
     r1, g1, b1 = rgb1
     r2, g2, b2 = rgb2
     y1, u1, v1 = rgb2yuv(r1, g1, b1)
@@ -163,14 +135,6 @@ def pixels_are_dissimilar(rgb1, rgb2):
     udiff = abs(u1 - u2) > 7.0/255
     vdiff = abs(v1 - v2) > 6.0/255
     return ydiff or udiff or vdiff
-
-# remove dissimilar edges by yuv metric
-for x in xrange(w):
-    for y in xrange(h):
-        n = get_node(x, y, im)
-        neighbours_to_remove = [ne for ne in n.neighbours if pixels_are_dissimilar(n.rgb, ne.rgb)]
-        for ne in neighbours_to_remove:
-            n.remove_conn(ne)
 
 # to measure the curve length that a diagonal is part of
 # start from one end of the diagonal and move away from its neighbour in the other direction
@@ -181,7 +145,6 @@ def overall_curve_len(node1, node2):
     assert node1 in node2.neighbours
     assert node2 in node1.neighbours
     curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
-    # print curve_len
     return curve_len
 
 # node1 is the node we start exploring from
@@ -242,77 +205,6 @@ def dfs_connected_component_size(node, max_x, min_x, max_y, min_y):
                 encountered.add(ne)
                 stack.append(ne)
     return len(encountered)
-
-# apply heuristics to make graph planar
-for x in xrange(w-1):
-    for y in xrange(h-1):
-        n = get_node(x, y, im)
-        right = get_node(x+1, y, im) # node to the right of the curr node
-        down = get_node(x, y+1, im) # node directly below the curr node
-        rightdown = get_node(x+1, y+1, im) # node directly below and to the right of the curr node
-
-        # edges
-        self_to_right = right in n.neighbours
-        self_to_down = down in n.neighbours
-        right_to_rightdown = right in rightdown.neighbours
-        down_to_rightdown = down in rightdown.neighbours
-        # diagonals
-        diag1 = rightdown in n.neighbours
-        diag2 = down in right.neighbours
-
-        # check if fully connected
-        vert_and_horiz_edges = self_to_right and self_to_down and right_to_rightdown and down_to_rightdown
-        no_vert_horiz_edges = not (self_to_right or self_to_down or right_to_rightdown or down_to_rightdown)
-        both_diagonals = diag1 and diag2
-
-        fully_connected = vert_and_horiz_edges and both_diagonals # all 6 connections are present
-        only_diagonals = no_vert_horiz_edges and both_diagonals # only the diagonals are present
-
-        # we increase this each time a heuristic votes to keep diagonal 1
-        # and decrease this each time a heuristic votes to keep diagonal 2
-        keep_diag1 = 0.0
-        # at the end of the three heuristics, if it is > 0, we keep diagonal 2
-        # and if it is < 0, we keep diagonal 2
-        # no clue what we should do if it equals 0, though
-
-        if fully_connected:
-            n.remove_conn(rightdown)
-            right.remove_conn(down)
-
-        if only_diagonals:
-            # curves heuristic
-            # the longer curve should be kept
-            diag1_curve_len = overall_curve_len(n, rightdown)
-            diag2_curve_len = overall_curve_len(right, down)
-            curve_len_difference = abs(diag1_curve_len - diag2_curve_len)
-            if diag1_curve_len > diag2_curve_len:
-                keep_diag1 += curve_len_difference
-            else:
-                keep_diag1 -= curve_len_difference
-            # sparse pixels heuristic
-            # for each diagonal, find the length of the largest connected component
-            # while making sure that we stay within a window of, say, 8
-            window_edge_len = 8
-            component1_size, component2_size = largest_connected_components(n, right, down, rightdown, window_edge_len, im)
-            component_size_difference = abs(component1_size - component2_size)
-            # if n.get_xy() == (7,10):
-            #     print component1_size, component2_size
-            if component1_size < component2_size:
-                keep_diag1 += component_size_difference
-            else:
-                keep_diag1 -= component_size_difference
-            # islands heuristic
-            if (len(n.neighbours) == 1 or len(rightdown.neighbours) == 1) and \
-                    len(right.neighbours) != 1 and len(down.neighbours) != 1:
-                keep_diag1 += 5
-            elif len(n.neighbours) != 1 and len(rightdown.neighbours) != 1 and \
-                    (len(right.neighbours) == 1 or len(down.neighbours) == 1):
-                keep_diag1 -= 5
-
-            if keep_diag1 >= 0:
-                right.remove_conn(down)
-            else:
-                n.remove_conn(rightdown)
 
 # test that the graph is planar
 def test_graph_is_planar(im, nodes):
@@ -511,23 +403,23 @@ def init_original():
     gluOrtho2D(0, ww, 0, hh)
     glPointSize(3)
 
-def display_original():
-    global im
-    w, h = im.size
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    for x in xrange(w):
-        for y in xrange(h):
-            r, g, b = get_node(x, y, im).rgb
-            y = h - y - 1
-            glColor3ub(r, g, b)
-            glBegin(GL_QUADS)
-            glVertex2f(16*x, 16*y)
-            glVertex2f(16*(x+1), 16*y)
-            glVertex2f(16*(x+1), 16*(y+1))
-            glVertex2f(16*x, 16*(y+1))
-            glEnd()
-            # draw_pixel_centre(x,y)
-    glFlush()
+# def display_original():
+#     global im
+#     w, h = im.size
+#     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+#     for x in xrange(w):
+#         for y in xrange(h):
+#             r, g, b = get_node(x, y, im).rgb
+#             y = h - y - 1
+#             glColor3ub(r, g, b)
+#             glBegin(GL_QUADS)
+#             glVertex2f(16*x, 16*y)
+#             glVertex2f(16*(x+1), 16*y)
+#             glVertex2f(16*(x+1), 16*(y+1))
+#             glVertex2f(16*x, 16*(y+1))
+#             glEnd()
+#             # draw_pixel_centre(x,y)
+#     glFlush()
 
 # note: exits program on mac
 def keyboard_original(key, x, y):
@@ -586,30 +478,6 @@ def render_b_splines_optimized():
 
 '''rendering over'''
 
-points = {}
-# points is a dict mapping (x,y) to the Point
-# present there. We could use an array because the
-# Point locations are quantized to quarter-pixels, but there are 4wh possible
-# point locations, which would mean a very sparse array and a lot of wasted
-# memory. So the dict is a better way to store all the Points
-
-# now construct the simplified voronoi diagram
-# and in the process, fill up the global Points map
-for x in xrange(w):
-    for y in xrange(h):
-        find_all_voronoi_points(x, y, im)
-        n = get_node(x, y, im)
-        n.vor_pts = convex_hull(n.vor_pts)
-        # create the points
-        for xx, yy in n.vor_pts:
-            if (xx, yy) in points:
-                p = points[(xx, yy)]
-                p.nodes.add(n)
-            else:
-                p = Point(x=xx, y=yy)
-                points[(xx, yy)] = p
-                p.nodes.add(n)
-
 def test_point_positions():
     global points, imagename
     if imagename == 'smw_boo.png':
@@ -618,6 +486,144 @@ def test_point_positions():
 if len(sys.argv) > 1 and sys.argv[1] == '--tests':
     test_point_positions()
 
-# render_original()
-# render_voronoi()
-# note: exits program on mac
+imagename = 'img/invaders_02.png'
+imagename = 'img/invaders_01.png'
+imagename = 'img/smw2_koopa.png'
+imagename = 'img/sma_chest.png'
+imagename = 'img/smw2_yoshi_02.png'
+imagename = 'img/smw2_yoshi_01.png'
+imagename = 'img/smb_jump.png'
+imagename = 'img/sma_toad.png'
+imagename = 'img/smw_cape_mario_yoshi.png'
+imagename = 'img/sma_peach_01.png'
+imagename = 'img/smw_boo.png'
+
+im = Image.open(imagename)
+w, h = im.size
+
+nodes = []
+
+def initdepix():
+    global im, nodes
+    # create nodes
+    for row in xrange(h):
+        for col in xrange(w):
+            n = Node(image=im, x=col, y=row, rgb=im.getpixel((col, row)))
+            nodes.append(n)
+
+    # initialize similarity graph
+    for row in xrange(h):
+        for col in xrange(w):
+            n = get_node(col, row, im)
+            for x in [-1,0,1]:
+                for y in [-1,0,1]:
+                    if x != 0 or y != 0:
+                        neighbour = get_node(col+x, row+y, im)
+                        n.make_conn(neighbour)
+
+    # remove dissimilar edges by yuv metric
+    for x in xrange(w):
+        for y in xrange(h):
+            n = get_node(x, y, im)
+            neighbours_to_remove = [ne for ne in n.neighbours if pixels_are_dissimilar(n.rgb, ne.rgb)]
+            for ne in neighbours_to_remove:
+                n.remove_conn(ne)
+
+    # apply heuristics to make graph planar
+    for x in xrange(w-1):
+        for y in xrange(h-1):
+            n = get_node(x, y, im)
+            right = get_node(x+1, y, im) # node to the right of the curr node
+            down = get_node(x, y+1, im) # node directly below the curr node
+            rightdown = get_node(x+1, y+1, im) # node directly below and to the right of the curr node
+
+            # edges
+            self_to_right = right in n.neighbours
+            self_to_down = down in n.neighbours
+            right_to_rightdown = right in rightdown.neighbours
+            down_to_rightdown = down in rightdown.neighbours
+            # diagonals
+            diag1 = rightdown in n.neighbours
+            diag2 = down in right.neighbours
+
+            # check if fully connected
+            vert_and_horiz_edges = self_to_right and self_to_down and right_to_rightdown and down_to_rightdown
+            no_vert_horiz_edges = not (self_to_right or self_to_down or right_to_rightdown or down_to_rightdown)
+            both_diagonals = diag1 and diag2
+
+            fully_connected = vert_and_horiz_edges and both_diagonals # all 6 connections are present
+            only_diagonals = no_vert_horiz_edges and both_diagonals # only the diagonals are present
+
+            # we increase this each time a heuristic votes to keep diagonal 1
+            # and decrease this each time a heuristic votes to keep diagonal 2
+            keep_diag1 = 0.0
+            # at the end of the three heuristics, if it is > 0, we keep diagonal 2
+            # and if it is < 0, we keep diagonal 2
+            # no clue what we should do if it equals 0, though
+
+            if fully_connected:
+                n.remove_conn(rightdown)
+                right.remove_conn(down)
+
+            if only_diagonals:
+                # curves heuristic
+                # the longer curve should be kept
+                diag1_curve_len = overall_curve_len(n, rightdown)
+                diag2_curve_len = overall_curve_len(right, down)
+                curve_len_difference = abs(diag1_curve_len - diag2_curve_len)
+                if diag1_curve_len > diag2_curve_len:
+                    keep_diag1 += curve_len_difference
+                else:
+                    keep_diag1 -= curve_len_difference
+                # sparse pixels heuristic
+                # for each diagonal, find the length of the largest connected component
+                # while making sure that we stay within a window of, say, 8
+                window_edge_len = 8
+                component1_size, component2_size = largest_connected_components(n, right, down, rightdown, window_edge_len, im)
+                component_size_difference = abs(component1_size - component2_size)
+                # if n.get_xy() == (7,10):
+                #     print component1_size, component2_size
+                if component1_size < component2_size:
+                    keep_diag1 += component_size_difference
+                else:
+                    keep_diag1 -= component_size_difference
+                # islands heuristic
+                if (len(n.neighbours) == 1 or len(rightdown.neighbours) == 1) and \
+                        len(right.neighbours) != 1 and len(down.neighbours) != 1:
+                    keep_diag1 += 5
+                elif len(n.neighbours) != 1 and len(rightdown.neighbours) != 1 and \
+                        (len(right.neighbours) == 1 or len(down.neighbours) == 1):
+                    keep_diag1 -= 5
+
+                if keep_diag1 >= 0:
+                    right.remove_conn(down)
+                else:
+                    n.remove_conn(rightdown)
+
+    points = {}
+    # points is a dict mapping (x,y) to the Point
+    # present there. We could use an array because the
+    # Point locations are quantized to quarter-pixels, but there are 4wh possible
+    # point locations, which would mean a very sparse array and a lot of wasted
+    # memory. So the dict is a better way to store all the Points
+
+    # now construct the simplified voronoi diagram
+    # and in the process, fill up the global Points map
+    for x in xrange(w):
+        for y in xrange(h):
+            find_all_voronoi_points(x, y, im)
+            n = get_node(x, y, im)
+            n.vor_pts = convex_hull(n.vor_pts)
+            # create the points
+            for xx, yy in n.vor_pts:
+                if (xx, yy) in points:
+                    p = points[(xx, yy)]
+                    p.nodes.add(n)
+                else:
+                    p = Point(x=xx, y=yy)
+                    points[(xx, yy)] = p
+                    p.nodes.add(n)
+
+    # render_original()
+    render_voronoi()
+    # note: exits program on mac
