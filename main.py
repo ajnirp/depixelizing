@@ -53,6 +53,9 @@ class Point(object):
         self.vedges = set([])
         # neighbouring points
         self.neighbours = set([])
+        # is the point an endpoint belonging to several vedges?
+        # or is it just a point in the middle of a vedge
+        self.is_endpt = False
 
     def add_node(self, n):
         self.nodes.append(n)
@@ -62,6 +65,9 @@ class Point(object):
 
     def add_neighbour(self, pt):
         self.neighbours.add(pt)
+
+    def get_xy(self):
+        return (self.x, self.y)
 
 imagename = 'img/invaders_02.png'
 imagename = 'img/invaders_01.png'
@@ -557,8 +563,8 @@ def display_voronoi():
             n = get_node(x, y, im)
             r, g, b = n.rgb
             glColor3ub(r, g, b)
-            glBegin(GL_POLYGON)
-            # glBegin(GL_LINE_LOOP)
+            # glBegin(GL_POLYGON)
+            glBegin(GL_LINE_LOOP)
             for pt in n.vor_pts:
                 x_pt, y_pt = pt
                 y_pt = h - y_pt
@@ -600,7 +606,7 @@ for x in xrange(w):
         find_all_voronoi_points(x, y, im)
         n = get_node(x, y, im)
         n.vor_pts = convex_hull(n.vor_pts)
-        # create the points
+        # populate the points dict
         for xx, yy in n.vor_pts:
             if (xx, yy) in points:
                 p = points[(xx, yy)]
@@ -609,15 +615,33 @@ for x in xrange(w):
                 p = Point(x=xx, y=yy)
                 points[(xx, yy)] = p
                 p.nodes.add(n)
+        # populate the neighbours for each point
+        # by treating n.vor_pts as a circular array
+        num_vor_pts = len(n.vor_pts)
+        for i in xrange(len(n.vor_pts)):
+            p = points[n.vor_pts[i]]
+            p.neighbours.add(points[n.vor_pts[(i+1)%num_vor_pts]])
+            p.neighbours.add(points[n.vor_pts[(i-1)%num_vor_pts]])
 
 def test_point_positions():
     global points, imagename
-    if imagename == 'smw_boo.png':
+    if imagename == 'img/smw_boo.png':
         assert (8.75, 11.75) in points
+
+def test_point_neighbours():
+    global points, imagename
+    if imagename == 'img/smw_boo.png':
+        assert (5.75, 0.75) in points
+        assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours }
 
 if len(sys.argv) > 1 and sys.argv[1] == '--tests':
     test_point_positions()
+    test_point_neighbours()
+
+# for coords, pt in points.items():
+#     if len(pt.vedges) == 0:
+#         if 
 
 # render_original()
-# render_voronoi()
+render_voronoi()
 # note: exits program on mac
