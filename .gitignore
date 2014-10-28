@@ -4,3 +4,4 @@ dep_old/
 *.o
 *.so
 a.out
+*.pyc
