@@ -405,6 +405,7 @@ def find_potentially_useless_points(node):
 # eliminate all points p such that p and its immediate neighbours
 # have an angle of 180 degrees
 def find_useless_pts(n):
+    global points
     potentially_useless = find_potentially_useless_points(n)
     actually_useful = set()
     for coord_pair in potentially_useless:
