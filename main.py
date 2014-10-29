@@ -608,6 +608,8 @@ for x in xrange(w):
         n.vor_pts = filter(lambda p: p not in useless_pts, n.vor_pts)
         # also update the global points dict
         for p in useless_pts:
+            for ne in points[p].neighbours:
+                ne.neighbours.remove(points[p])
             del points[p]
 
 # pt1 and pt2 are two polygon vertices in the simplified voronoi diagram
@@ -653,6 +655,8 @@ if len(sys.argv) > 1 and sys.argv[1] == '--tests':
 # global list of visible edge sequences
 vedges = []
 
+##### rewrite this alternately below
+
 # pt1 = point, pt2 = pt1's neighbour
 # find the longest visible edge for which pt1 is an endpoint
 # and pt2 is the point connected to pt1
@@ -660,8 +664,8 @@ def find_longest_visible_edge(pt1, pt2):
     global vedges
 
     # sanity checks
-    # assert pt1.get_xy() in points
-    # assert pt2.get_xy() in points
+    assert pt1.get_xy() in points
+    assert pt2.get_xy() in points
 
     pt_list = [pt1, pt2]
     prev, curr = pt1, pt2
@@ -708,9 +712,9 @@ def worth_exploring(pt):
 for pt in points.values():
     # check if pt has exactly two slve neighbours
     slve_neighbours = filter(lambda x: visible_edge(x, pt), pt.neighbours)
-    if len(slve_neighbours) != 2 and worth_exploring(pt):
-        for ne in pt.neighbours:
-            if visible_edge(pt, ne) and worth_exploring(ne):
+    if worth_exploring(pt):
+        for ne in slve_neighbours: # single edge (i.e. between two points)
+            if worth_exploring(ne):
                 find_longest_visible_edge(pt, ne)
 
 # pt is a point at which three visible edges are meeting
@@ -734,6 +738,46 @@ print len(vedges)
 for pt in points.values():
     if len(pt.vedges) == 3:
         merge_visible_edges(pt)
+
+##### method akin to curves heuristic
+
+def all_visible_edges(p): # point "p"
+    slve_nbrs = filter(lambda x: visible_edge(x, p), p.neighbours)
+    # half_curve_1 = half_curve(p, p.slve_nbrs[0])
+    # if half_curve_1[-1] == p # loop
+    #     return half_curve_1
+    # half_curve_1.reverse()
+    # half_curve_2 = half_curve(p, p.slve_nbrs[1])
+    # return half_curve_1 + [p] + half_curve_2
+    visible_edges = [[p] + visible_edge(p, ne) for ne in slve_nbrs if len(ne.vedges) == 0]
+    if len(visible_edges) == 2:
+        visible_edge1, visible_edge2 = visible_edges
+        visible_edges = [list(reversed(visible_edge1)) + [p] + visible_edge2]
+    return visible_edges
+
+def half_curve(p1, p2):
+    assert p1 in p2.neighbours
+    assert p2 in p1.neighbours
+    if len(p1.neighbours) != 2:
+        return []
+    assert len(p1.neighbours) == 2
+    current, previous = p1, p2
+    encountered = set([p2])
+    result = []
+    while len(current.neighbours) == 2:
+        neighb1, neighb2 = current.neighbours
+        old_curr_x, old_curr_y = current.get_xy()
+        if neighb1 == previous:
+            current = neighb2
+        else:
+            current = neighb1
+        previous = get_node(old_curr_x, old_curr_y, im)
+        result.append(current)
+        if current not in encountered:
+            encountered.add(current)
+        else:
+            break
+    return result
 
 # render_original()
 render_voronoi()

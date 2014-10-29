@@ -1,0 +1,17 @@
+*[what about a non-visible edge]
+visible edges (where significantly different colors meet)
+	connected sequences (that contain only valence-2 nodes)
+		count only visible edges to determine valence of node
+	converted into <quadratic> B-spline curves
+		control points of B-splines initialized to node locations
+
+if three splines end at single common node
+	if "separated" cells have a YUV distance of at most 100/255
+		categorize as shading edge; else contour edge
+	if one shading edge and two contour edges
+		connect the contour edges
+if this heuristic does not resolve the situation
+	connect the pair angle between edges closest to 180 degrees [Fig. 5B]
+
+adjust endpoint of curve that ends at a T-junction to
+lie on the curve that continues through the T-junction
