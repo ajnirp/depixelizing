@@ -1,7 +1,11 @@
-# usage: python main.py imagefile
-# e.g. python main.py img/smw2_yoshi_01.png
+# usage: python main.py
+# e.g. python main.py
+# to enable inline tests, python main.py --tests
+
+IMAGE_SCALE  = 36
 
 import sys
+from classes import *
 
 if sys.platform == "darwin":
     from PIL import Image
@@ -12,44 +16,17 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 
-class Node(object):
-    def __init__(self, image, x, y, rgb):
-        self.image = image
-        self.x = x
-        self.y = y
-        self.neighbours = set([])
-        self.rgb = rgb
-        # ALL voronoi cell points
-        # we take the convex hull of these to get
-        # the actual voronoi cell points
-        self.vor_pts = []
-        # shape starts from here => 1
-        # shape includes this => 2
-        self.status = 0 # => "unused"
-        # "associated" neighbour nodes
-        self.ann = []
-
-    # connect two nodes
-    def make_conn(self, n):
-        if n is not None:
-            self.neighbours.add(n)
-            n.neighbours.add(self)
-
-    def remove_conn(self, n):
-        if n is not None:
-            self.neighbours.remove(n)
-            n.neighbours.remove(self)
-
-    def get_xy(self):
-        return (self.x, self.y)
-
-    def print_neighbours(self):
-        print [ne.get_xy() for ne in self.neighbours]
-
-# imagename = 'img/smw_boo.png'
-# imagename = 'img/invaders_02.png'
-# imagename = 'img/invaders_01.png'
+imagename = 'img/invaders_02.png'
+imagename = 'img/invaders_01.png'
 imagename = 'img/smw2_koopa.png'
+imagename = 'img/sma_chest.png'
+imagename = 'img/smw2_yoshi_02.png'
+imagename = 'img/smw2_yoshi_01.png'
+imagename = 'img/smb_jump.png'
+imagename = 'img/sma_toad.png'
+imagename = 'img/smw_cape_mario_yoshi.png'
+imagename = 'img/sma_peach_01.png'
+imagename = 'img/smw_boo.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -82,19 +59,19 @@ for row in xrange(h):
 
 '''tests'''
 
-def node_corresponds_to_image(im):
+def test_node_corresponds_to_image(im):
     for x in xrange(col):
         for y in xrange(row):
             assert get_node(x,y,im).rgb == im.getpixel((x,y))
 
-def neighbours_are_mutual(im):
+def test_neighbours_are_mutual(im):
     for x in xrange(col):
         for y in xrange(row):
             n = get_node(x,y,im)
             for ne in n.neighbours:
                 assert n in ne.neighbours
 
-def number_of_neighbours_is_correct(im):
+def test_number_of_neighbours_is_correct(im):
     w, h = im.size
     # corner nodes have 3 neighbours
     assert len(get_node(0,   0,   im).neighbours) == 3
@@ -113,11 +90,10 @@ def number_of_neighbours_is_correct(im):
         for y in xrange(1, h-1):
             assert len(get_node(x, y, im).neighbours) == 8
 
-node_corresponds_to_image(im)
-number_of_neighbours_is_correct(im)
-neighbours_are_mutual(im)
-
-'''tests over'''
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_node_corresponds_to_image(im)
+    test_number_of_neighbours_is_correct(im)
+    test_neighbours_are_mutual(im)
 
 # convert rgb to yuv
 def rgb2yuv(r,g,b):
@@ -302,7 +278,8 @@ def test_graph_is_planar(im, nodes):
             if n in rightdown.neighbours and right in down.neighbours:
                 print n.get_xy()
 
-test_graph_is_planar(im, nodes)
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_graph_is_planar(im, nodes)
 
 def find_all_voronoi_points(x, y, im):
     # x, y = 0, 0 is the topleft pixel
@@ -412,6 +389,33 @@ def find_all_voronoi_points(x, y, im):
     else:
         n.vor_pts.append((x_center + 0.5, y_center + 0.5))
 
+def find_potentially_useless_points(node):
+    pts = node.vor_pts
+    num_pts = len(pts)
+    result = set()
+    for i in xrange(len(pts)):
+        p1 = pts[i     % num_pts]
+        p2 = pts[(i+1) % num_pts]
+        p3 = pts[(i+2) % num_pts]
+        if (p1[0]-p2[0],p1[1]-p2[1]) == (p2[0]-p3[0],p2[1]-p3[1]):
+            result.add(p2)
+    return result
+
+# given a list of points (in our case, the polygon points for some pixel),
+# eliminate all points p such that p and its immediate neighbours
+# have an angle of 180 degrees
+def find_useless_pts(n):
+    global points
+    potentially_useless = find_potentially_useless_points(n)
+    actually_useful = set()
+    for coord_pair in potentially_useless:
+        pt = points[coord_pair]
+        for other_node in pt.nodes:
+            if other_node != n and pt not in find_potentially_useless_points(other_node):
+                actually_useful.add(pt.get_xy())
+    useless = potentially_useless - actually_useful
+    return useless
+
 # find the convex hull of a bunch of points represented as 2-tuples
 # we use the Jarvis march: http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
 def convex_hull(pts):
@@ -446,7 +450,7 @@ def is_to_the_left(a, b, c):
     ca = (a[0] - c[0], a[1] - c[1]) # vector from c to a
     return bc[0]*ca[1] - bc[1]*ca[0] < 0
 
-''' tests '''
+'''tests'''
 # remember, our system is left-handed
 # (0, 0) is the topleft pixel, not the bottomleft pixel
 def test_is_to_the_left():
@@ -460,41 +464,9 @@ def test_convex_hull():
     cvh1 = {(0, 1), (0.75, 0.75), (1, 0), (0, 0)}
     assert set(convex_hull(pts1)) == cvh1
 
-test_is_to_the_left()
-test_convex_hull()
-''' tests over '''
-
-# now construct the simplified voronoi diagram
-for x in xrange(w):
-    for y in xrange(h):
-        find_all_voronoi_points(x, y, im)
-        n = get_node(x, y, im)
-        n.vor_pts = convex_hull(n.vor_pts)
-
-''' extracting spline curves '''
-def nodes_in_shape (n, x, y):
-    ann = []
-    for i in xrange (x, w):
-        yrange = xrange(h)
-        if i == x:
-            yrange = xrange (y, h)
-        for j in yrange:
-            n2 = get_node(x, y, im)
-            if not pixels_are_dissimilar (n.rgb, n2.rgb):
-                ann.add(n2)
-                n2.status = 2
-                # absolutely wrong
-    return ann
-
-# find all associated polygons
-for x in xrange(w):
-    for y in xrange(h):
-        if n.status == 0:
-            n.ann = nodes_in_shape (n, x, y)
-            n.status = 1
-
-''' b-splines —— optimization '''
-# start here
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_is_to_the_left()
+    test_convex_hull()
 
 '''rendering code'''
 # http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
@@ -505,13 +477,13 @@ def draw_pixel_centre(x,y):
     # draw centre of each pixel
     glColor3ub(0, 255, 0)
     glBegin(GL_POINTS)
-    glVertex2f(16*(x+0.5), 16*(y+0.5))
+    glVertex2f(IMAGE_SCALE*(x+0.5), IMAGE_SCALE*(y+0.5))
     glEnd()
 
 def init_original():
     global w,h
-    ww = w * 16
-    hh = h * 16
+    ww = w * IMAGE_SCALE
+    hh = h * IMAGE_SCALE
     glClearColor(1.0, 1.0, 1.0, 0.0)
     glColor3f(0.0, 0.0, 0.0)
     glMatrixMode(GL_PROJECTION)
@@ -529,12 +501,12 @@ def display_original():
             y = h - y - 1
             glColor3ub(r, g, b)
             glBegin(GL_QUADS)
-            glVertex2f(16*x, 16*y)
-            glVertex2f(16*(x+1), 16*y)
-            glVertex2f(16*(x+1), 16*(y+1))
-            glVertex2f(16*x, 16*(y+1))
+            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*y)
+            glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*y)
+            glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*(y+1))
+            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(y+1))
             glEnd()
-            draw_pixel_centre(x,y)
+            # draw_pixel_centre(x,y)
     glFlush()
 
 # note: exits program on mac
@@ -548,7 +520,7 @@ def keyboard_original(key, x, y):
 def render_original():
     global window_id
     glutInit()
-    glutInitWindowSize(w * 16, h * 16)
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
     window_id = glutCreateWindow('Original Image')
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutDisplayFunc(display_original)
@@ -565,20 +537,20 @@ def display_voronoi():
             n = get_node(x, y, im)
             r, g, b = n.rgb
             glColor3ub(r, g, b)
-            glBegin(GL_POLYGON)
-            # glBegin(GL_LINE_LOOP)
+            # glBegin(GL_POLYGON)
+            glBegin(GL_LINE_LOOP)
             for pt in n.vor_pts:
                 x_pt, y_pt = pt
                 y_pt = h - y_pt
-                glVertex2f(16*x_pt, 16*y_pt)
+                glVertex2f(IMAGE_SCALE*x_pt, IMAGE_SCALE*y_pt)
             glEnd()
-            # draw_pixel_centre(x, h - y - 1)
+            draw_pixel_centre(x, h - y - 1)
     glFlush()
 
 def render_voronoi():
     global window_id, w, h
     glutInit()
-    glutInitWindowSize(w * 16, h * 16)
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
     window_id = glutCreateWindow('Voronoi Image')
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutDisplayFunc(display_voronoi)
@@ -593,6 +565,175 @@ def render_b_splines_optimized():
     pass
 
 '''rendering over'''
+
+points = {}
+# points is a dict mapping (x,y) to the Point
+# present there. We could use an array because the
+# Point locations are quantized to quarter-pixels, but there are 4wh possible
+# point locations, which would mean a very sparse array and a lot of wasted
+# memory. So the dict is a better way to store all the Points
+
+# now construct the simplified voronoi diagram
+# and in the process, fill up the global Points map
+for x in xrange(w):
+    for y in xrange(h):
+        find_all_voronoi_points(x, y, im)
+        n = get_node(x, y, im)
+        n.vor_pts = convex_hull(n.vor_pts)
+        # populate the points dict
+        for xx, yy in n.vor_pts:
+            if (xx, yy) in points:
+                p = points[(xx, yy)]
+                p.nodes.add(n)
+            else:
+                p = Point(x=xx, y=yy)
+                points[(xx, yy)] = p
+                p.nodes.add(n)
+        # populate the neighbours for each point
+        # by treating n.vor_pts as a circular array
+        num_vor_pts = len(n.vor_pts)
+        for i in xrange(len(n.vor_pts)):
+            p = points[n.vor_pts[i]]
+            p.neighbours.add(points[n.vor_pts[(i+1)%num_vor_pts]])
+            p.neighbours.add(points[n.vor_pts[(i-1)%num_vor_pts]])
+
+# remove all useless points
+# n = get_node(0,0,im)
+# print find_useless_pts(n)
+# n.vor_pts = filter(lambda p: p not in find_useless_pts(n), n.vor_pts)
+for x in xrange(w):
+    for y in xrange(h):
+        n = get_node(x, y, im)
+        useless_pts = find_useless_pts(n)
+        n.vor_pts = filter(lambda p: p not in useless_pts, n.vor_pts)
+        # also update the global points dict
+        for p in useless_pts:
+            del points[p]
+
+# pt1 and pt2 are two polygon vertices in the simplified voronoi diagram
+# this function checks if the reshaped pixels corresponding to the two polygons on
+# either side of the edge joining pt1 to pt2 are different enough for the edge
+# to be classified as visible
+def visible_edge(pt1, pt2):
+    # get the pixels associated with both points and take the intersection of the two sets
+    # this either has size 2 or size 1
+    # the second case happens when the two polygon points are on the boundary
+    # in this case, the edge is trivially not a visible edge since there is no
+    # need to draw b-splines along the boundary
+    # note that here, by "visible edge" we mean a single-length visible edge
+    # whereas elsewhere, we use it to mean "a sequence of nodes separating 2 regions"
+    intersection = pt1.nodes & pt2.nodes
+    if len(intersection) == 1:
+        return True
+    else:
+        node1, node2 = intersection
+        return pixels_are_dissimilar(node1.rgb, node2.rgb)
+
+def test_point_positions():
+    global points, imagename
+    if imagename == 'img/smw_boo.png':
+        assert (8.75, 11.75) in points
+        assert (0, 0) in points
+
+def test_point_neighbours():
+    global points, imagename
+    if imagename == 'img/smw_boo.png':
+        assert (5.75, 0.75) in points
+        assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours }
+
+# TODO
+def test_visible_edge():
+    pass
+
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_point_positions()
+    test_point_neighbours()
+    # test_visible_edge()
+
+# global list of visible edge sequences
+vedges = []
+
+# pt1 = point, pt2 = pt1's neighbour
+# find the longest visible edge for which pt1 is an endpoint
+# and pt2 is the point connected to pt1
+def find_longest_visible_edge(pt1, pt2):
+    global vedges
+
+    # sanity checks
+    # assert pt1.get_xy() in points
+    # assert pt2.get_xy() in points
+
+    pt_list = [pt1, pt2]
+    prev, curr = pt1, pt2
+
+    # if pt2 is already the endpoint of some other vedge
+    # we can directly create a new vedge
+    # else, we need to explore further to find the longest vedge
+    if not pt2.is_endpoint:
+        while True:
+            # find all single-length-visible-edge neighbours of curr
+            slve_neighbours = filter(lambda x: visible_edge(x, curr), curr.neighbours)
+            if len(slve_neighbours) != 2:
+                break # stop, since this is not a valence-2 node
+            else:
+                ne1, ne2 = slve_neighbours
+                if ne1 == prev: prev, curr = curr, ne2
+                elif ne2 == prev: prev, curr = curr, ne1
+                # check for a loop. if no loop, add curr to pt_list and carry on
+                if curr != pt1: pt_list.append(curr)
+                else: break # loop detected
+
+    # create the visible edge sequence object
+    v = VisibleEdge(pt_list)
+    # tell every point in pt_list that v is one of their vedges
+    map(lambda p: p.vedges.add(v), pt_list)
+    # if pt1 wasn't an endpoint before, it is now
+    pt1.is_endpoint |= True
+    # add v to the global list of vedges
+    vedges.append(v)
+    return v
+
+# this predicate tells us if we should search for any visible edges
+# that a point might be part of. there are two cases we might want to do this
+# 1. the point is not currently part of any visible edge
+# 2. it is part of a visible edge. however, it is an endpoint of that edge
+#    so it is okay for us to search for other visible edges that might have it
+#    as an endpoint
+# if this returns true, then pt is an endpoint of at least one vedge
+def worth_exploring(pt):
+    has_no_vedges = len(pt.vedges) == 0
+    has_but_is_endpoint = len(pt.vedges) > 0 and pt.is_endpoint
+    return has_no_vedges or has_but_is_endpoint
+
+for pt in points.values():
+    # check if pt has exactly two slve neighbours
+    slve_neighbours = filter(lambda x: visible_edge(x, pt), pt.neighbours)
+    if len(slve_neighbours) != 2 and worth_exploring(pt):
+        for ne in pt.neighbours:
+            if visible_edge(pt, ne) and worth_exploring(ne):
+                find_longest_visible_edge(pt, ne)
+
+# pt = points[(13.25,3.75)]
+# slve_neighbours = filter(lambda x: visible_edge(x, pt), pt.neighbours)
+# print len(slve_neighbours) != 2 and worth_exploring(pt)
+
+# pt is a point at which three visible edges are meeting
+# this function merges them as per section 3.3 on page 5
+def merge_visible_edges(pt):
+    # locate the neighbour of 'pt' in each one of these vedges
+    # this can be done in constant time, since we know that pt
+    # is an endpoint for each one of these vedges, and therefore
+    # it is either at the head or the tail of the lists
+    vedge1, vedge2, vedge3 = pt.vedges
+    neighb1 = vedge1.points[1] if vedge1.points[0] == pt else vedge1.points[-2]
+    neighb2 = vedge2.points[1] if vedge2.points[0] == pt else vedge2.points[-2]
+    neighb3 = vedge3.points[1] if vedge3.points[0] == pt else vedge3.points[-2]
+    # measure the angles - TODO
+    pass
+
+for pt in points.values():
+    if len(pt.vedges) == 3:
+        merge_visible_edges(pt)
 
 # render_original()
 render_voronoi()

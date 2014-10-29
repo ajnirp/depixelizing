@@ -1,0 +1,4 @@
+cython main.py -> main.c
+gcc -O3 -c -fPIC main.c -L/usr/local/lib/python2.7/ -lpython2.7 -I/usr/include/python2.7/ -> main.o
+gcc -shared main.o -o main.so -> main.so
+python so.py -> output we need

@@ -1,2 +1,7 @@
 dep_old/
 .DS_Store
+*.c
+*.o
+*.so
+a.out
+*.pyc
