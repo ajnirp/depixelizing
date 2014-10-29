@@ -608,6 +608,8 @@ for x in xrange(w):
         n.vor_pts = filter(lambda p: p not in useless_pts, n.vor_pts)
         # also update the global points dict
         for p in useless_pts:
+            for ne in points[p].neighbours:
+                ne.neighbours.remove(points[p])
             del points[p]
 
 # pt1 and pt2 are two polygon vertices in the simplified voronoi diagram
@@ -660,8 +662,8 @@ def find_longest_visible_edge(pt1, pt2):
     global vedges
 
     # sanity checks
-    # assert pt1.get_xy() in points
-    # assert pt2.get_xy() in points
+    assert pt1.get_xy() in points
+    assert pt2.get_xy() in points
 
     pt_list = [pt1, pt2]
     prev, curr = pt1, pt2
