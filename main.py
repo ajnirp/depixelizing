@@ -713,10 +713,6 @@ for pt in points.values():
             if visible_edge(pt, ne) and worth_exploring(ne):
                 find_longest_visible_edge(pt, ne)
 
-# pt = points[(13.25,3.75)]
-# slve_neighbours = filter(lambda x: visible_edge(x, pt), pt.neighbours)
-# print len(slve_neighbours) != 2 and worth_exploring(pt)
-
 # pt is a point at which three visible edges are meeting
 # this function merges them as per section 3.3 on page 5
 def merge_visible_edges(pt):
@@ -730,6 +726,10 @@ def merge_visible_edges(pt):
     neighb3 = vedge3.points[1] if vedge3.points[0] == pt else vedge3.points[-2]
     # measure the angles - TODO
     pass
+
+print len(vedges)
+# for v in vedges:
+#     if 
 
 for pt in points.values():
     if len(pt.vedges) == 3:
