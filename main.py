@@ -832,6 +832,18 @@ def test_visible_edges():
         assert len(v) == 1
         assert len(v.pop().points) == 58
 
+        v = points[(4.25, 5.25)].vedges
+        assert len(v) == 1
+        assert len(v.pop().points) == 8
+
+        v = points[(9.25, 6.25)].vedges
+        assert len(v) == 1
+        assert len(v.pop().points) == 22
+
+        v = points[(3.25, 10.25)].vedges
+        assert len(v) == 1
+        assert len(v.pop().points) == 24
+
 if len(sys.argv) > 1 and sys.argv[1] == '--tests':
     test_visible_edges()
 
