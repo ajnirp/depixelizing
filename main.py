@@ -2,19 +2,120 @@
 # e.g. python main.py
 # to enable inline tests, python main.py --tests
 
-IMAGE_SCALE  = 36
+IMAGE_SCALE  = 28
 
 import sys
+
 from classes import *
+from render import *
 
 if sys.platform == "darwin":
     from PIL import Image
 else:
     import Image
 
+''' rendering code'''
+
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
+
+# http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
+window_id = -1
+
+def draw_pixel_centre(x,y):
+    # draw centre of each pixel
+    glColor3ub(0, 255, 0)
+    glBegin(GL_POINTS)
+    glVertex2f(IMAGE_SCALE*(x+0.5), IMAGE_SCALE*(y+0.5))
+    glEnd()
+
+def init_original():
+    global w,h
+    ww = w * IMAGE_SCALE
+    hh = h * IMAGE_SCALE
+    glClearColor(1.0, 1.0, 1.0, 0.0)
+    glColor3f(0.0, 0.0, 0.0)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    gluOrtho2D(0, ww, 0, hh)
+    glPointSize(3)
+
+def display_original():
+    global im
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    for x in xrange(w):
+        for y in xrange(h):
+            r, g, b = get_node(x, y, im).rgb
+            y = h - y - 1
+            glColor3ub(r, g, b)
+            glBegin(GL_QUADS)
+            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*y)
+            glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*y)
+            glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*(y+1))
+            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(y+1))
+            glEnd()
+            # draw_pixel_centre(x,y)
+    glFlush()
+
+# note: exits program on mac
+def keyboard_original(key, x, y):
+    global window_id
+    if key == chr(27):
+        glutDestroyWindow(window_id)
+        if sys.platform == "darwin":
+            exit(0)
+
+def render_original():
+    global window_id
+    glutInit()
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
+    window_id = glutCreateWindow('Original Image')
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutDisplayFunc(display_original)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
+    glutMainLoop()
+
+def display_voronoi():
+    global im
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    for x in xrange(w):
+        for y in xrange(h):
+            n = get_node(x, y, im)
+            r, g, b = n.rgb
+            glColor3ub(r, g, b)
+            # glBegin(GL_POLYGON)
+            glBegin(GL_LINE_LOOP)
+            for pt in n.vor_pts:
+                x_pt, y_pt = pt
+                y_pt = h - y_pt
+                glVertex2f(IMAGE_SCALE*x_pt, IMAGE_SCALE*y_pt)
+            glEnd()
+            draw_pixel_centre(x, h - y - 1)
+    glFlush()
+
+def render_voronoi():
+    global window_id, im
+    w, h = im.size
+    glutInit()
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
+    window_id = glutCreateWindow('Voronoi Image')
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutDisplayFunc(display_voronoi)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
+    glutMainLoop()
+
+def render_b_splines():
+    pass
+
+def render_b_splines_optimized():
+    pass
+
+''' rendering over'''
 
 imagename = 'img/invaders_02.png'
 imagename = 'img/invaders_01.png'
@@ -134,7 +235,6 @@ def overall_curve_len(node1, node2):
     assert node1 in node2.neighbours
     assert node2 in node1.neighbours
     curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
-    # print curve_len
     return curve_len
 
 # node1 is the node we start exploring from
@@ -389,14 +489,13 @@ def find_all_voronoi_points(x, y, im):
     else:
         n.vor_pts.append((x_center + 0.5, y_center + 0.5))
 
-def find_potentially_useless_points(node):
-    pts = node.vor_pts
-    num_pts = len(pts)
+def find_potentially_useless_points(n):
+    num_pts = len(n.vor_pts)
     result = set()
-    for i in xrange(len(pts)):
-        p1 = pts[i     % num_pts]
-        p2 = pts[(i+1) % num_pts]
-        p3 = pts[(i+2) % num_pts]
+    for i in xrange(len(n.vor_pts)):
+        p1 = n.vor_pts[i     % num_pts]
+        p2 = n.vor_pts[(i+1) % num_pts]
+        p3 = n.vor_pts[(i+2) % num_pts]
         if (p1[0]-p2[0],p1[1]-p2[1]) == (p2[0]-p3[0],p2[1]-p3[1]):
             result.add(p2)
     return result
@@ -468,110 +567,34 @@ if len(sys.argv) > 1 and sys.argv[1] == '--tests':
     test_is_to_the_left()
     test_convex_hull()
 
-'''rendering code'''
-# http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
-
-window_id = -1
-
-def draw_pixel_centre(x,y):
-    # draw centre of each pixel
-    glColor3ub(0, 255, 0)
-    glBegin(GL_POINTS)
-    glVertex2f(IMAGE_SCALE*(x+0.5), IMAGE_SCALE*(y+0.5))
-    glEnd()
-
-def init_original():
-    global w,h
-    ww = w * IMAGE_SCALE
-    hh = h * IMAGE_SCALE
-    glClearColor(1.0, 1.0, 1.0, 0.0)
-    glColor3f(0.0, 0.0, 0.0)
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluOrtho2D(0, ww, 0, hh)
-    glPointSize(3)
-
-def display_original():
-    global im
-    w, h = im.size
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    for x in xrange(w):
-        for y in xrange(h):
-            r, g, b = get_node(x, y, im).rgb
-            y = h - y - 1
-            glColor3ub(r, g, b)
-            glBegin(GL_QUADS)
-            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*y)
-            glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*y)
-            glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*(y+1))
-            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(y+1))
-            glEnd()
-            # draw_pixel_centre(x,y)
-    glFlush()
-
-# note: exits program on mac
-def keyboard_original(key, x, y):
-    global window_id
-    if key == chr(27):
-        glutDestroyWindow(window_id)
-        if sys.platform == "darwin":
-            exit(0)
-
-def render_original():
-    global window_id
-    glutInit()
-    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Original Image')
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(display_original)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
-    glutMainLoop()
-
-def display_voronoi():
-    global im
-    w, h = im.size
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    for x in xrange(w):
-        for y in xrange(h):
-            n = get_node(x, y, im)
-            r, g, b = n.rgb
-            glColor3ub(r, g, b)
-            # glBegin(GL_POLYGON)
-            glBegin(GL_LINE_LOOP)
-            for pt in n.vor_pts:
-                x_pt, y_pt = pt
-                y_pt = h - y_pt
-                glVertex2f(IMAGE_SCALE*x_pt, IMAGE_SCALE*y_pt)
-            glEnd()
-            draw_pixel_centre(x, h - y - 1)
-    glFlush()
-
-def render_voronoi():
-    global window_id, w, h
-    glutInit()
-    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Voronoi Image')
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(display_voronoi)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
-    glutMainLoop()
-
-def render_b_splines():
-    pass
-
-def render_b_splines_optimized():
-    pass
-
-'''rendering over'''
-
 points = {}
 # points is a dict mapping (x,y) to the Point
 # present there. We could use an array because the
 # Point locations are quantized to quarter-pixels, but there are 4wh possible
 # point locations, which would mean a very sparse array and a lot of wasted
 # memory. So the dict is a better way to store all the Points
+
+# populate the neighbours for each point belonging to node n
+# by treating n.vor_pts as a circular array
+def populate_neighbours(n):
+    global points
+    # initialize the list of neighbours (with respect to n) for each point
+    for p in n.vor_pts:
+        points[p].neighbours[n] = set()
+    # base cases
+    num_vor_pts = len(n.vor_pts)
+    if num_vor_pts == 1:
+        return
+    if num_vor_pts == 2:
+        p1, p2 = points[n.vor_pts[0]], points[n.vor_pts[1]]
+        p1.neighbours[n].add(p2)
+        p2.neighbours[n].add(p1)
+        return
+    # circular array
+    for i in xrange(len(n.vor_pts)):
+        p = points[n.vor_pts[i]]
+        p.neighbours[n].add(points[n.vor_pts[(i+1)%num_vor_pts]])
+        p.neighbours[n].add(points[n.vor_pts[(i-1)%num_vor_pts]])
 
 # now construct the simplified voronoi diagram
 # and in the process, fill up the global Points map
@@ -589,18 +612,11 @@ for x in xrange(w):
                 p = Point(x=xx, y=yy)
                 points[(xx, yy)] = p
                 p.nodes.add(n)
-        # populate the neighbours for each point
-        # by treating n.vor_pts as a circular array
-        num_vor_pts = len(n.vor_pts)
-        for i in xrange(len(n.vor_pts)):
-            p = points[n.vor_pts[i]]
-            p.neighbours.add(points[n.vor_pts[(i+1)%num_vor_pts]])
-            p.neighbours.add(points[n.vor_pts[(i-1)%num_vor_pts]])
+        populate_neighbours(n)
+
+# print [p.get_xy() for p in points[(3.25,4.25)].neighbours]
 
 # remove all useless points
-# n = get_node(0,0,im)
-# print find_useless_pts(n)
-# n.vor_pts = filter(lambda p: p not in find_useless_pts(n), n.vor_pts)
 for x in xrange(w):
     for y in xrange(h):
         n = get_node(x, y, im)
@@ -608,15 +624,15 @@ for x in xrange(w):
         n.vor_pts = filter(lambda p: p not in useless_pts, n.vor_pts)
         # also update the global points dict
         for p in useless_pts:
-            for ne in points[p].neighbours:
-                ne.neighbours.remove(points[p])
+            for ne in points[p].neighbours[n]:
+                ne.neighbours[n].remove(points[p])
             del points[p]
 
 # pt1 and pt2 are two polygon vertices in the simplified voronoi diagram
 # this function checks if the reshaped pixels corresponding to the two polygons on
 # either side of the edge joining pt1 to pt2 are different enough for the edge
 # to be classified as visible
-def visible_edge(pt1, pt2):
+def polygons_are_dissimilar(pt1, pt2):
     # get the pixels associated with both points and take the intersection of the two sets
     # this either has size 2 or size 1
     # the second case happens when the two polygon points are on the boundary
@@ -641,81 +657,23 @@ def test_point_neighbours():
     global points, imagename
     if imagename == 'img/smw_boo.png':
         assert (5.75, 0.75) in points
-        assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours }
+        # assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours[get_node(5,1,im)] }
 
 # TODO
-def test_visible_edge():
-    pass
+def test_polygons_are_dissimilar():
+    global points, imagename
+    if imagename == 'img/smw_boo.png':
+        p1 = points[(3.25, 4.25)]
+        p2 = points[(2.75, 3.75)]
+        assert not polygons_are_dissimilar(p1, p2)
 
 if len(sys.argv) > 1 and sys.argv[1] == '--tests':
     test_point_positions()
     test_point_neighbours()
-    # test_visible_edge()
+    test_polygons_are_dissimilar()
 
 # global list of visible edge sequences
 vedges = []
-
-##### rewrite this alternately below
-
-# pt1 = point, pt2 = pt1's neighbour
-# find the longest visible edge for which pt1 is an endpoint
-# and pt2 is the point connected to pt1
-def find_longest_visible_edge(pt1, pt2):
-    global vedges
-
-    # sanity checks
-    assert pt1.get_xy() in points
-    assert pt2.get_xy() in points
-
-    pt_list = [pt1, pt2]
-    prev, curr = pt1, pt2
-
-    # if pt2 is already the endpoint of some other vedge
-    # we can directly create a new vedge
-    # else, we need to explore further to find the longest vedge
-    if not pt2.is_endpoint:
-        while True:
-            # find all single-length-visible-edge neighbours of curr
-            slve_neighbours = filter(lambda x: visible_edge(x, curr), curr.neighbours)
-            if len(slve_neighbours) != 2:
-                break # stop, since this is not a valence-2 node
-            else:
-                ne1, ne2 = slve_neighbours
-                if ne1 == prev: prev, curr = curr, ne2
-                elif ne2 == prev: prev, curr = curr, ne1
-                # check for a loop. if no loop, add curr to pt_list and carry on
-                if curr != pt1: pt_list.append(curr)
-                else: break # loop detected
-
-    # create the visible edge sequence object
-    v = VisibleEdge(pt_list)
-    # tell every point in pt_list that v is one of their vedges
-    map(lambda p: p.vedges.add(v), pt_list)
-    # if pt1 wasn't an endpoint before, it is now
-    pt1.is_endpoint |= True
-    # add v to the global list of vedges
-    vedges.append(v)
-    return v
-
-# this predicate tells us if we should search for any visible edges
-# that a point might be part of. there are two cases we might want to do this
-# 1. the point is not currently part of any visible edge
-# 2. it is part of a visible edge. however, it is an endpoint of that edge
-#    so it is okay for us to search for other visible edges that might have it
-#    as an endpoint
-# if this returns true, then pt is an endpoint of at least one vedge
-def worth_exploring(pt):
-    has_no_vedges = len(pt.vedges) == 0
-    has_but_is_endpoint = len(pt.vedges) > 0 and pt.is_endpoint
-    return has_no_vedges or has_but_is_endpoint
-
-for pt in points.values():
-    # check if pt has exactly two slve neighbours
-    slve_neighbours = filter(lambda x: visible_edge(x, pt), pt.neighbours)
-    if worth_exploring(pt):
-        for ne in slve_neighbours: # single edge (i.e. between two points)
-            if worth_exploring(ne):
-                find_longest_visible_edge(pt, ne)
 
 # pt is a point at which three visible edges are meeting
 # this function merges them as per section 3.3 on page 5
@@ -731,53 +689,147 @@ def merge_visible_edges(pt):
     # measure the angles - TODO
     pass
 
-print len(vedges)
-# for v in vedges:
-#     if 
+def keep_closest_collinear_neighbours(p, neighbours):
+    # filter all neighbours ne such that p has a neighbour ne', ne' has ne as its neighbour
+    # and p, ne and ne' lie on a straight line with ne' in between p and ne
+    to_remove = set()
+    for i in xrange(len(neighbours)):
+        for j in xrange(i+1, len(neighbours)):
+            if is_straight_line(p, neighbours[i], neighbours[j]):
+                # if p is not the middle point, remove
+                # the neighbour which is farther away
+                if p.x < neighbours[i].x and p.x < neighbours[j].x:
+                    if neighbours[i].x < neighbours[j].x:
+                        to_remove.add(neighbours[j])
+                    else:
+                        to_remove.add(neighbours[i])
+                elif p.x > neighbours[i].x and p.x > neighbours[j].x:
+                    if neighbours[i].x > neighbours[j].x:
+                        to_remove.add(neighbours[j])
+                    else:
+                        to_remove.add(neighbours[i])
 
-for pt in points.values():
-    if len(pt.vedges) == 3:
-        merge_visible_edges(pt)
+    return filter(lambda p: p not in to_remove, neighbours)
 
-##### method akin to curves heuristic
+# p is a point for which we want to find all containing visible edge sequences
+def find_all_visible_edges(p):
+    # keep only neighbours with which p has a visible edge
+    slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
+    # keep only closest neighbours along a line
+    slve_neighbours = keep_closest_collinear_neighbours(p, slve_neighbours)
 
-def all_visible_edges(p): # point "p"
-    slve_nbrs = filter(lambda x: visible_edge(x, p), p.neighbours)
-    # half_curve_1 = half_curve(p, p.slve_nbrs[0])
-    # if half_curve_1[-1] == p # loop
-    #     return half_curve_1
-    # half_curve_1.reverse()
-    # half_curve_2 = half_curve(p, p.slve_nbrs[1])
-    # return half_curve_1 + [p] + half_curve_2
-    visible_edges = [[p] + visible_edge(p, ne) for ne in slve_nbrs if len(ne.vedges) == 0]
+    # should we explore the visible edge with (p, ne) as a starting edge?
+    # yes, if ne has not been explored before. if it has,
+    #  then surely it encountered the (ne, p) edge
+    visible_edges = [find_visible_edge(p, ne) for ne in slve_neighbours if len(ne.vedges) == 0]
+
+    # if p.get_xy() == (3.25,4.25):
+    #     print 'there are', len(visible_edges), 'visible edges'
+    #     for q in visible_edges:
+    #         print [r.get_xy() for r in q]
+    #         print '#######################'
+
+    # check if two visible edge sequences are actually reversals of each other
+    to_remove = set()
+    for i in xrange(len(visible_edges)):
+        for j in xrange(len(visible_edges)):
+            v, w = visible_edges[i], visible_edges[j]
+            # we found a pair, and neither i nor j is marked for removal
+            if v[1:] == list(reversed(w[1:])) and j not in to_remove and i not in to_remove:
+                # add i to to_remove. we could add j too, either way works
+                to_remove.add(i)
+    # perform the removal
+    visible_edges = [v for i,v in enumerate(visible_edges) if i not in to_remove]
+
+    # if we only have two visible edge sequences, they are actually
+    # two disjoint parts of one single visible edge sequence. so, we merge them
     if len(visible_edges) == 2:
-        visible_edge1, visible_edge2 = visible_edges
-        visible_edges = [list(reversed(visible_edge1)) + [p] + visible_edge2]
-    return visible_edges
+        visible_edge1, visible_edge2 = visible_edges[0][1:], visible_edges[1][1:]
 
-def half_curve(p1, p2):
-    assert p1 in p2.neighbours
-    assert p2 in p1.neighbours
-    if len(p1.neighbours) != 2:
-        return []
-    assert len(p1.neighbours) == 2
-    current, previous = p1, p2
-    encountered = set([p2])
-    result = []
-    while len(current.neighbours) == 2:
-        neighb1, neighb2 = current.neighbours
-        old_curr_x, old_curr_y = current.get_xy()
-        if neighb1 == previous:
-            current = neighb2
+        # we need to check if either of the two sequences is a cycle
+        is_cycle1 = visible_edge1[0] == visible_edge1[-1]
+        is_cycle2 = visible_edge2[0] == visible_edge2[-1]
+        
+        if is_cycle1 and is_cycle2:
+            visible_edges = [visible_edge1[:-1] + visible_edge2]
+        elif is_cycle1 and not is_cycle2:
+            visible_edges = [list(reversed(visible_edge2))[:-1] + visible_edge1]
+        elif is_cycle2 and not is_cycle1:
+            visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
         else:
-            current = neighb1
-        previous = get_node(old_curr_x, old_curr_y, im)
-        result.append(current)
-        if current not in encountered:
-            encountered.add(current)
+            visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
+
+    # create the corresponding VisibleEdge objects for each point list in visible_edges
+    # and update visible edges for p
+    result = [VisibleEdge(pt_list) for pt_list in visible_edges]
+    for ve_object in result:
+        p.vedges.add(ve_object)
+
+    return result
+
+# returns true if points a b and c are collinear
+def is_straight_line(p1, p2, p3):
+    a, b, c = p1.get_xy(), p2.get_xy(), p3.get_xy()
+    if a[1] == b[1]: return b[1] == c[1]
+    if c[1] == b[1]: return b[1] == a[1]
+    slope1 = float(a[0]-b[0]) / float(a[1]-b[1])
+    slope2 = float(c[0]-b[0]) / float(c[1]-b[1])
+    return slope1 == slope2
+
+# (p1, p2) is the first edge of the visible edge with p1 as an endpoint
+# examples
+# 1 - 2 - 3 yields the list [1,2,3]
+# 1 - 2 - 3 - 1 yields the list [1,2,3,1]
+def find_visible_edge(p1, p2):
+    assert p1 in p2.all_neighbours()
+    assert p2 in p1.all_neighbours()
+
+    prev, curr = p1, p2
+    encountered = set([p1, p2])
+    result = [p1]
+    while True:
+        slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, curr), curr.all_neighbours())
+        slve_neighbours = keep_closest_collinear_neighbours(curr, slve_neighbours)
+
+        if len(slve_neighbours) != 2:
+            result.append(curr)
+            break
+
+        result.append(curr)
+
+        neighb1, neighb2 = slve_neighbours
+        if neighb1 == prev:
+            prev, curr = curr, neighb2
+        else:
+            prev, curr = curr, neighb1
+
+        if curr not in encountered:
+            encountered.add(curr)
         else:
             break
+    
     return result
+
+for p in points.values():
+    if len(p.vedges) == 0:
+        vedges += find_all_visible_edges(p)
+
+p = points[(3.25, 4.25)]
+print len(p.vedges)
+p = points[(7, 1)]
+print len(p.vedges)
+# find_all_visible_edges(p)
+
+def test_visible_edges():
+    global imagename
+    if imagename == 'img/smw_boo.png':
+        assert len(points[(7, 1)].vedges) == 1
+        # assert len(points[(7, 1)].vedges[0]) == 66
+        assert len(points[(3.25, 4.25)].vedges) == 1
+        # assert len(points[(3.25, 4.25)].vedges[0]) == 58
+
+# if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+#     test_visible_edges()
 
 # render_original()
 render_voronoi()

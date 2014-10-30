@@ -39,8 +39,10 @@ class Point(object):
         self.nodes = set([])
         # visible edges that this point is a part of
         self.vedges = set([])
-        # neighbouring points
-        self.neighbours = set([])
+        # neighbouring points dict
+        # this maps an owner node to the set of neighbours the
+        # point has with respect to that node
+        self.neighbours = {}
         # is the point an endpoint belonging to several vedges?
         # or is it just a point in the middle of a vedge
         self.is_endpoint = False
@@ -51,17 +53,17 @@ class Point(object):
     def add_vedge(self, ve):
         self.vedges.add(ve)
 
-    def add_neighbour(self, pt):
-        self.neighbours.add(pt)
-
     def get_xy(self):
         return (self.x, self.y)
 
     def __eq__(self, other):
         return self.get_xy() == other.get_xy()
 
+    def all_neighbours(self):
+        return set.union(*[self.neighbours[n] for n in self.nodes])
+
 class VisibleEdge(object):
-    def __init__(self, pt_list):
+    def __init__(self, pt_list=[]):
         # list of points comprising the visible edge
         self.points = pt_list
         self.b_spline = None
