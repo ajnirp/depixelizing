@@ -63,9 +63,9 @@ class Point(object):
         return set.union(*[self.neighbours[n] for n in self.nodes])
 
 class VisibleEdge(object):
-    def __init__(self, pt_list=[]):
+    def __init__(self, points=[]):
         # list of points comprising the visible edge
-        self.points = pt_list
+        self.points = points
         self.b_spline = None
 
     def get_endpoints(self):

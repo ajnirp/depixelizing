@@ -713,10 +713,13 @@ def keep_closest_collinear_neighbours(p, neighbours):
 
 # p is a point for which we want to find all containing visible edge sequences
 def find_all_visible_edges(p):
-    # keep only neighbours with which p has a visible edge
+    # keep only neighbours with which I have a single-length visible edge
     slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
-    # keep only closest neighbours along a line
+    # keep only my closest neighbours along a line
     slve_neighbours = keep_closest_collinear_neighbours(p, slve_neighbours)
+    # remove neighbours which already have a visible edge *sequence* with me
+    for ve_object in p.vedges:
+        slve_neighbours = filter(lambda ne: ne not in ve_object.points, slve_neighbours)
 
     # should we explore the visible edge with (p, ne) as a starting edge?
     # yes, if ne has not been explored before. if it has,
@@ -759,11 +762,12 @@ def find_all_visible_edges(p):
         else:
             visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
 
-    # create the corresponding VisibleEdge objects for each point list in visible_edges
-    # and update visible edges for p
-    result = [VisibleEdge(pt_list) for pt_list in visible_edges]
-    for ve_object in result:
-        p.vedges.add(ve_object)
+    result = []
+    for v in visible_edges:
+        ve_object = VisibleEdge(v)
+        result.append(ve_object)
+        for pt in v:
+            pt.vedges.add(ve_object)
 
     return result
 
@@ -811,25 +815,25 @@ def find_visible_edge(p1, p2):
     return result
 
 for p in points.values():
-    if len(p.vedges) == 0:
-        vedges += find_all_visible_edges(p)
-
-p = points[(3.25, 4.25)]
-print len(p.vedges)
-p = points[(7, 1)]
-print len(p.vedges)
-# find_all_visible_edges(p)
+    ve_object_list = find_all_visible_edges(p)
+    vedges += ve_object_list
+    # for ve in vedge:
+    #     if points[(7, 1)] in ve.points:
+    #         print p.get_xy(),
 
 def test_visible_edges():
     global imagename
     if imagename == 'img/smw_boo.png':
-        assert len(points[(7, 1)].vedges) == 1
-        # assert len(points[(7, 1)].vedges[0]) == 66
-        assert len(points[(3.25, 4.25)].vedges) == 1
-        # assert len(points[(3.25, 4.25)].vedges[0]) == 58
+        v = points[(7,1)].vedges
+        assert len(v) == 1
+        assert len(v.pop().points) == 66
 
-# if len(sys.argv) > 1 and sys.argv[1] == '--tests':
-#     test_visible_edges()
+        v = points[(3.25, 4.25)].vedges
+        assert len(v) == 1
+        assert len(v.pop().points) == 58
+
+if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+    test_visible_edges()
 
 # render_original()
 render_voronoi()
