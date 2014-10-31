@@ -118,9 +118,15 @@ def display_voronoi():
                 y_pt = h - y_pt
                 glVertex2f(IMAGE_SCALE*x_pt, IMAGE_SCALE*y_pt)
             glEnd()
-            draw_pixel_centre(x, h - y - 1)
+    if '--centres' in sys.argv:
+        display_pixel_centres(w, h)
     display_point_list()
     glFlush()
+
+def display_pixel_centres(w, h):
+    for x in xrange(w):
+        for y in xrange(h):
+            draw_pixel_centre(x, h - y - 1)
 
 def display_visible_edges():
     global im, vedges
@@ -134,9 +140,8 @@ def display_visible_edges():
             x, y = p.get_xy()
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
         glEnd()
-    for x in xrange(w):
-        for y in xrange(h):
-            draw_pixel_centre(x, h - y - 1)
+    if '--centres' in sys.argv:
+        display_pixel_centres(w, h)
     display_point_list()
     glFlush()
 
@@ -169,11 +174,11 @@ def display_similarity():
     glFlush()
 
 def render_similarity():
-    global window_id, im
+    global window_id, im, imagename
     w, h = im.size
     glutInit()
     glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Similarity Graph')
+    window_id = glutCreateWindow('Similarity Graph - ' + imagename)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutDisplayFunc(display_similarity)
     glutKeyboardFunc(keyboard_original)
@@ -181,11 +186,11 @@ def render_similarity():
     glutMainLoop()
 
 def render_voronoi():
-    global window_id, im
+    global window_id, im, imagename
     w, h = im.size
     glutInit()
     glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Voronoi Image')
+    window_id = glutCreateWindow('Voronoi Image - ' + imagename)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutDisplayFunc(display_voronoi)
     glutKeyboardFunc(keyboard_original)
@@ -193,11 +198,11 @@ def render_voronoi():
     glutMainLoop()
 
 def render_visible_edges():
-    global window_id, im
+    global window_id, im, imagename
     w, h = im.size
     glutInit()
     glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Visible Edges')
+    window_id = glutCreateWindow('Visible Edges - ' + imagename)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutDisplayFunc(display_visible_edges)
     glutKeyboardFunc(keyboard_original)
@@ -229,18 +234,20 @@ def render(render_stage):
 
 ''' rendering over'''
 
-imagename = 'img/smw2_koopa.png'
-imagename = 'img/sma_chest.png'
-imagename = 'img/smw2_yoshi_02.png'
-imagename = 'img/smw2_yoshi_01.png'
-imagename = 'img/sma_toad.png'
-imagename = 'img/invaders_01.png'
-imagename = 'img/invaders_02.png'
-imagename = 'img/smb_jump.png'
-imagename = 'img/smw_boo.png'
-imagename = 'img/sma_peach_01.png'
-imagename = 'img/smw_dolphin.png'
-imagename = 'img/smw_cape_mario_yoshi.png'
+def process_command_line_arg(argname, necessary=False, missing_error=''):
+    if argname not in sys.argv:
+        if necessary:
+            sys.stderr.write(missing_error + '\n')
+            exit(1)
+        else:
+            return None
+    index = sys.argv.index(argname)
+    if len(sys.argv) < index + 2:
+        sys.stderr.write(argname + ' needs an argument\n')
+        exit(1)
+    return sys.argv[index+1]
+    
+imagename = process_command_line_arg('--image', True, 'need an image to convert')
 
 im = Image.open(imagename)
 w, h = im.size
@@ -940,10 +947,6 @@ def test_visible_edges():
 if '--tests' in sys.argv:
     test_visible_edges()
 
-if '--render' in sys.argv:
-    index = sys.argv.index('--render')
-    if len(sys.argv) < index + 2:
-        sys.stderr.write('--render needs an argument\n')
-        exit(1)
-    render_stage = sys.argv[index+1]
+render_stage = process_command_line_arg('--render')
+if render_stage is not None:
     render(render_stage)
