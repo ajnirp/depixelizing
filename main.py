@@ -14,7 +14,7 @@ if sys.platform == "darwin":
 else:
     import Image
 
-''' rendering code'''
+'''rendering code'''
 
 from OpenGL.GL import *
 from OpenGL.GLUT import *
@@ -97,6 +97,22 @@ def display_voronoi():
             draw_pixel_centre(x, h - y - 1)
     glFlush()
 
+def display_visible_edges():
+    global im, vedges
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glColor3ub(0, 0, 0)
+    for v in vedges:
+        glBegin(GL_LINE_LOOP)
+        for p in v.points:
+            x, y = p.get_xy()
+            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
+        glEnd()
+    for x in xrange(w):
+        for y in xrange(h):
+            draw_pixel_centre(x, h - y - 1)
+    glFlush()
+
 def render_voronoi():
     global window_id, im
     w, h = im.size
@@ -105,6 +121,18 @@ def render_voronoi():
     window_id = glutCreateWindow('Voronoi Image')
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     glutDisplayFunc(display_voronoi)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
+    glutMainLoop()
+
+def render_visible_edges():
+    global window_id, im
+    w, h = im.size
+    glutInit()
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
+    window_id = glutCreateWindow('Visible Edges')
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutDisplayFunc(display_visible_edges)
     glutKeyboardFunc(keyboard_original)
     init_original()
     glutMainLoop()
@@ -191,7 +219,7 @@ def test_number_of_neighbours_is_correct(im):
         for y in xrange(1, h-1):
             assert len(get_node(x, y, im).neighbours) == 8
 
-if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+if '--tests' in sys.argv:
     test_node_corresponds_to_image(im)
     test_number_of_neighbours_is_correct(im)
     test_neighbours_are_mutual(im)
@@ -378,7 +406,7 @@ def test_graph_is_planar(im, nodes):
             if n in rightdown.neighbours and right in down.neighbours:
                 print n.get_xy()
 
-if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+if '--tests' in sys.argv:
     test_graph_is_planar(im, nodes)
 
 def find_all_voronoi_points(x, y, im):
@@ -563,7 +591,7 @@ def test_convex_hull():
     cvh1 = {(0, 1), (0.75, 0.75), (1, 0), (0, 0)}
     assert set(convex_hull(pts1)) == cvh1
 
-if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+if '--tests' in sys.argv:
     test_is_to_the_left()
     test_convex_hull()
 
@@ -667,7 +695,7 @@ def test_polygons_are_dissimilar():
         p2 = points[(2.75, 3.75)]
         assert not polygons_are_dissimilar(p1, p2)
 
-if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+if '--tests' in sys.argv:
     test_point_positions()
     test_point_neighbours()
     test_polygons_are_dissimilar()
@@ -844,9 +872,25 @@ def test_visible_edges():
         assert len(v) == 1
         assert len(v.pop().points) == 24
 
-if len(sys.argv) > 1 and sys.argv[1] == '--tests':
+if '--tests' in sys.argv:
     test_visible_edges()
 
-# render_original()
-render_voronoi()
-# note: exits program on mac
+if '--render' in sys.argv:
+    index = sys.argv.index('--render')
+    if len(sys.argv) < index + 2:
+        sys.stderr.write('--render needs an argument\n')
+        exit(1)
+    render_stage = sys.argv[index+1]
+    if render_stage == 'original':
+        render_original()
+    elif render_stage == 'voronoi':
+        render_voronoi()
+    elif render_stage == 'vedges':
+        render_visible_edges()
+    elif render_stage == 'bsplines':
+        render_b_splines()
+    elif render_stage == 'optimized':
+        render_b_splines_optimized()
+    else:
+        sys.stderr.write('unknown option for --render: ' +  render_stage + '\n')
+        exit(1)
