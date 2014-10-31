@@ -4,7 +4,7 @@
 
 IMAGE_SCALE  = 28
 
-import sys
+import random, sys
 
 from classes import *
 from render import *
@@ -29,9 +29,27 @@ point_list = []
 
 def draw_pixel_centre(x,y):
     # draw centre of each pixel
-    glColor3ub(0, 255, 0)
-    glBegin(GL_POINTS)
-    glVertex2f(IMAGE_SCALE*(x+0.5), IMAGE_SCALE*(y+0.5))
+    global im
+    r, g, b = get_node(x, y, im).rgb
+    glColor3ub(r, g, b)
+    perturb = 0.075
+
+    points = [(IMAGE_SCALE*(x+0.5-perturb), IMAGE_SCALE*(y+0.5-perturb)),
+              (IMAGE_SCALE*(x+0.5-perturb), IMAGE_SCALE*(y+0.5+perturb)),
+              (IMAGE_SCALE*(x+0.5+perturb), IMAGE_SCALE*(y+0.5+perturb)),
+              (IMAGE_SCALE*(x+0.5+perturb), IMAGE_SCALE*(y+0.5-perturb))]
+
+    # fill
+    glBegin(GL_POLYGON)
+    for x, y in points:
+        glVertex2f(x, y)
+    glEnd()
+
+    # stroke
+    glColor3ub(0, 0, 0)
+    glBegin(GL_LINE_LOOP)
+    for x, y in points:
+        glVertex2f(x, y)
     glEnd()
 
 def init_original():
@@ -91,8 +109,10 @@ def display_voronoi():
             n = get_node(x, y, im)
             r, g, b = n.rgb
             glColor3ub(r, g, b)
-            # glBegin(GL_POLYGON)
-            glBegin(GL_LINE_LOOP)
+            if '--lines' in sys.argv:
+                glBegin(GL_LINE_LOOP)
+            else:
+                glBegin(GL_POLYGON)
             for pt in n.vor_pts:
                 x_pt, y_pt = pt
                 y_pt = h - y_pt
@@ -106,8 +126,8 @@ def display_visible_edges():
     global im, vedges
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glColor3ub(0, 0, 0)
     for v in vedges:
+        glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
         glBegin(GL_LINE_LOOP)
         for p in v.points:
             x, y = p.get_xy()
@@ -175,17 +195,17 @@ def render(render_stage):
 
 ''' rendering over'''
 
-imagename = 'img/invaders_02.png'
-imagename = 'img/invaders_01.png'
 imagename = 'img/smw2_koopa.png'
 imagename = 'img/sma_chest.png'
 imagename = 'img/smw2_yoshi_02.png'
 imagename = 'img/smw2_yoshi_01.png'
-imagename = 'img/smb_jump.png'
-imagename = 'img/sma_toad.png'
-imagename = 'img/smw_cape_mario_yoshi.png'
 imagename = 'img/sma_peach_01.png'
+imagename = 'img/sma_toad.png'
 imagename = 'img/smw_boo.png'
+imagename = 'img/smw_cape_mario_yoshi.png'
+imagename = 'img/smb_jump.png'
+imagename = 'img/invaders_02.png'
+imagename = 'img/invaders_01.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -703,6 +723,8 @@ def polygons_are_dissimilar(pt1, pt2):
         return True
     else:
         node1, node2 = intersection
+        print 'similarity of', node1.get_xy(), 'and', node2.get_xy(),
+        print pixels_are_dissimilar(node1.rgb, node2.rgb)
         return pixels_are_dissimilar(node1.rgb, node2.rgb)
 
 def test_point_positions():
@@ -784,20 +806,21 @@ def find_all_visible_edges(p):
     #  then surely it encountered the (ne, p) edge
     visible_edges = [find_visible_edge(p, ne) for ne in slve_neighbours if len(ne.vedges) == 0]
 
-    # if p.get_xy() == (3.25,4.25):
-    #     print 'there are', len(visible_edges), 'visible edges'
-    #     for q in visible_edges:
-    #         print [r.get_xy() for r in q]
+    if p.get_xy() == (2.75,3.75):
+        print 'there are', len(visible_edges), 'visible edges'
+        for q in visible_edges:
+            print [r.get_xy() for r in q]
 
     # check if two visible edge sequences are actually reversals of each other
     to_remove = set()
     for i in xrange(len(visible_edges)):
         for j in xrange(len(visible_edges)):
-            v, w = visible_edges[i], visible_edges[j]
-            # we found a pair, and neither i nor j is marked for removal
-            if v[1:] == list(reversed(w[1:])) and j not in to_remove and i not in to_remove:
-                # add i to to_remove. we could add j too, either way works
-                to_remove.add(i)
+            if i != j: # not necessary?
+                v, w = visible_edges[i], visible_edges[j]
+                # we found a pair, and neither i nor j is marked for removal
+                if v[1:] == list(reversed(w[1:])) and j not in to_remove and i not in to_remove:
+                    # add i to to_remove. we could add j too, either way works
+                    to_remove.add(i)
     # perform the removal
     visible_edges = [v for i,v in enumerate(visible_edges) if i not in to_remove]
 
@@ -826,6 +849,8 @@ def find_all_visible_edges(p):
         for pt in v:
             pt.vedges.add(ve_object)
 
+    if p.get_xy() == (2.75,3.75):
+        print [[p.get_xy() for p in ve.get_endpoints()] for ve in result]
     return result
 
 # returns true if points a b and c are collinear
@@ -870,20 +895,24 @@ def find_visible_edge(p1, p2):
         if curr not in encountered:
             encountered.add(curr)
         else:
-            # print 'stopping because encountered', curr.get_xy()
+            # print 'stopping because already encountered'
             break
     # print '*****************'
     return result
 
-for p in points.values():
-    ve_object_list = find_all_visible_edges(p)
-    vedges += ve_object_list
+# for p in points.values():
+#     ve_object_list = find_all_visible_edges(p)
+#     vedges += ve_object_list
     # for ve in vedge:
     #     if points[(7, 1)] in ve.points:
     #         print p.get_xy(),
 
-p = points[(14.75,7.25)]
-point_list = [p] + list(p.all_neighbours())
+p = points[(2.75,3.75)]
+point_list = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
+point_list = [p] + keep_closest_collinear_neighbours(p, point_list)
+find_all_visible_edges(p)
+
+print polygons_are_dissimilar(points[(2.75, 3.75)], points[(3.25, 3.25)])
 
 # for ne in p.all_neighbours():
 #     print 'neighbour', ne.get_xy(),
