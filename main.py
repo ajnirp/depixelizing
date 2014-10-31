@@ -2,7 +2,7 @@
 # e.g. python main.py
 # to enable inline tests, python main.py --tests
 
-IMAGE_SCALE  = 28
+IMAGE_SCALE  = 16
 
 import random, sys
 
@@ -238,9 +238,9 @@ imagename = 'img/invaders_01.png'
 imagename = 'img/invaders_02.png'
 imagename = 'img/smb_jump.png'
 imagename = 'img/smw_boo.png'
-imagename = 'img/smw_cape_mario_yoshi.png'
 imagename = 'img/sma_peach_01.png'
 imagename = 'img/smw_dolphin.png'
+imagename = 'img/smw_cape_mario_yoshi.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -798,19 +798,22 @@ def keep_closest_collinear_neighbours(p, neighbours):
 def find_all_visible_edges(p):
     # keep only neighbours with which I have a single-length visible edge
     slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
-    # print 1, slve_neighbours
+    if p.get_xy() == (16.75,4.25):
+        print 1, slve_neighbours
     # keep only my closest neighbours along a line
     slve_neighbours = keep_closest_collinear_neighbours(p, slve_neighbours)
-    # print 2, slve_neighbours
+    if p.get_xy() == (16.75,4.25):
+        print 2, slve_neighbours
     # remove neighbours which already have a visible edge *sequence* with me
     for ve_object in p.vedges:
         slve_neighbours = filter(lambda ne: ne not in ve_object.points, slve_neighbours)
-    # print 3, slve_neighbours
+    if p.get_xy() == (16.75,4.25):
+        print 3, slve_neighbours
 
     # should we explore the visible edge with (p, ne) as a starting edge?
     # yes, if ne has not been explored before. if it has,
     #  then surely it encountered the (ne, p) edge
-    visible_edges = [find_visible_edge(p, ne) for ne in slve_neighbours if len(ne.vedges) == 0]
+    visible_edges = [find_visible_edge(p, ne) for ne in slve_neighbours]
 
     # check if two visible edge sequences are actually reversals of each other
     to_remove = set()
@@ -819,7 +822,10 @@ def find_all_visible_edges(p):
             if i != j:
                 v, w = visible_edges[i], visible_edges[j]
                 # we found a pair, and neither i nor j is marked for removal
-                if v[1:-1] == list(reversed(w[1:-1])) and j not in to_remove and i not in to_remove:
+                # first check for cycles
+                vv = v[1:-1] if v[0] == v[-1] else v
+                ww = w[1:-1] if w[0] == w[-1] else w
+                if vv == list(reversed(ww)) and j not in to_remove and i not in to_remove:
                     # add i to to_remove. we could add j too, either way works
                     to_remove.add(i)
     # perform the removal
@@ -852,6 +858,10 @@ def find_all_visible_edges(p):
         result.append(ve_object)
         for pt in v:
             pt.vedges.add(ve_object)
+
+    if p.get_xy() == (16.75, 4.25):
+        print visible_edges
+
     return result
 
 # returns true if points a b and c are collinear
@@ -878,6 +888,9 @@ def find_visible_edge(p1, p2):
         slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, curr), curr.all_neighbours())
         slve_neighbours = keep_closest_collinear_neighbours(curr, slve_neighbours)
 
+        # if points[(14.25,3.25)] in result:
+        #     print curr, slve_neighbours
+
         if len(slve_neighbours) != 2:
             result.append(curr)
             break
@@ -896,13 +909,7 @@ def find_visible_edge(p1, p2):
             result.append(curr)
             break
 
-    print result
-    global point_list
-    point_list = result
     return result
-
-# p = points[(14.25, 3.25)]
-# vedges += find_all_visible_edges(p)
 
 for p in points.values():
     vedges += find_all_visible_edges(p)
