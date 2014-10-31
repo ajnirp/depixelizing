@@ -30,6 +30,9 @@ class Node(object):
     def __eq__(self, other):
         return self.get_xy() == other.get_xy()
 
+    def __repr__(self):
+        return str(self.get_xy())
+
 class Point(object):
     def __init__(self, x, y):
         self.x = x
@@ -58,6 +61,9 @@ class Point(object):
 
     def __eq__(self, other):
         return self.get_xy() == other.get_xy()
+
+    def __repr__(self):
+        return str(self.get_xy())
 
     def all_neighbours(self):
         return set.union(*[self.neighbours[n] for n in self.nodes])

@@ -2,12 +2,12 @@
 # e.g. python main.py
 # to enable inline tests, python main.py --tests
 
-IMAGE_SCALE  = 28
+IMAGE_SCALE  = 16
 
 import random, sys
 
 from classes import *
-from render import *
+from hull import *
 
 if sys.platform == "darwin":
     from PIL import Image
@@ -30,7 +30,8 @@ point_list = []
 def draw_pixel_centre(x,y):
     # draw centre of each pixel
     global im
-    r, g, b = get_node(x, y, im).rgb
+    w, h = im.size
+    r, g, b = get_node(x, h-y-1, im).rgb
     glColor3ub(r, g, b)
     perturb = 0.075
 
@@ -46,7 +47,7 @@ def draw_pixel_centre(x,y):
     glEnd()
 
     # stroke
-    glColor3ub(0, 0, 0)
+    glColor3ub(255-r, 255-g, 255-b)
     glBegin(GL_LINE_LOOP)
     for x, y in points:
         glVertex2f(x, y)
@@ -78,7 +79,6 @@ def display_original():
             glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*(y+1))
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(y+1))
             glEnd()
-            # draw_pixel_centre(x,y)
     glFlush()
 
 # note: exits program on mac
@@ -127,7 +127,8 @@ def display_visible_edges():
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for v in vedges:
-        glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
+        glColor3ub(0, 0, 0)
+        # glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
         glBegin(GL_LINE_LOOP)
         for p in v.points:
             x, y = p.get_xy()
@@ -199,13 +200,13 @@ imagename = 'img/smw2_koopa.png'
 imagename = 'img/sma_chest.png'
 imagename = 'img/smw2_yoshi_02.png'
 imagename = 'img/smw2_yoshi_01.png'
-imagename = 'img/sma_peach_01.png'
 imagename = 'img/sma_toad.png'
-imagename = 'img/smw_boo.png'
-imagename = 'img/smw_cape_mario_yoshi.png'
-imagename = 'img/smb_jump.png'
-imagename = 'img/invaders_02.png'
 imagename = 'img/invaders_01.png'
+imagename = 'img/invaders_02.png'
+imagename = 'img/smb_jump.png'
+imagename = 'img/smw_boo.png'
+imagename = 'img/sma_peach_01.png'
+imagename = 'img/smw_cape_mario_yoshi.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -309,7 +310,6 @@ for x in xrange(w):
 # measure the length of that curve. similarly, measure the length of the other curve
 # then add the two half-curve lengths (plus 1) to get the length of the entire curve
 def overall_curve_len(node1, node2):
-    # print node1.get_xy(), node2.get_xy(),
     assert node1 in node2.neighbours
     assert node2 in node1.neighbours
     curve_len = int(half_curve_len(node1, node2) + half_curve_len(node2, node1) + 1)
@@ -341,7 +341,6 @@ def half_curve_len(node1, node2):
             current = neighb1
         previous = get_node(old_current_x, old_current_y, im)
         result += 1
-        # print current.get_xy(),
         if current not in encountered:
             encountered.add(current)
         else:
@@ -426,8 +425,6 @@ for x in xrange(w-1):
             window_edge_len = 8
             component1_size, component2_size = largest_connected_components(n, right, down, rightdown, window_edge_len, im)
             component_size_difference = abs(component1_size - component2_size)
-            # if n.get_xy() == (7,10):
-            #     print component1_size, component2_size
             if component1_size < component2_size:
                 keep_diag1 += component_size_difference
             else:
@@ -453,8 +450,8 @@ def test_graph_is_planar(im, nodes):
             right = get_node(x+1, y, im)
             down = get_node(x, y+1, im)
             rightdown = get_node(x+1, y+1, im)
-            if n in rightdown.neighbours and right in down.neighbours:
-                print n.get_xy()
+            # if n in rightdown.neighbours and right in down.neighbours:
+            #     print n.get_xy()
 
 if '--tests' in sys.argv:
     test_graph_is_planar(im, nodes)
@@ -593,40 +590,6 @@ def find_useless_pts(n):
     useless = potentially_useless - actually_useful
     return useless
 
-# find the convex hull of a bunch of points represented as 2-tuples
-# we use the Jarvis march: http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
-def convex_hull(pts):
-    if len(pts) == 0:
-        return []
-
-    result = []
-
-    # first, find the leftmost point
-    point_on_hull = sorted(pts, key=lambda x: x[0])[0]
-
-    endpoint = None
-    # note: python copies tuples. no need to worry about references here
-    while True:
-        result.append(point_on_hull)
-        endpoint = pts[0]
-        for j in xrange(1, len(pts)):
-            if endpoint == point_on_hull or is_to_the_left(pts[j], result[-1], endpoint):
-                endpoint = pts[j]
-        point_on_hull = endpoint
-        if endpoint == result[0]:
-            break
-
-    return result
-
-# is a to the left of the line from b to c as seen from b?
-# http://kukuruku.co/hub/algorithms/a-point-localization-in-a-polygon
-# note: the PIL system is left-handed, so the > must be replaced by a <
-# OpenGL on the other hand is right-handed
-def is_to_the_left(a, b, c):
-    bc = (c[0] - b[0], c[1] - b[1]) # vector from b to c
-    ca = (a[0] - c[0], a[1] - c[1]) # vector from c to a
-    return bc[0]*ca[1] - bc[1]*ca[0] < 0
-
 '''tests'''
 # remember, our system is left-handed
 # (0, 0) is the topleft pixel, not the bottomleft pixel
@@ -639,7 +602,15 @@ def test_is_to_the_left():
 def test_convex_hull():
     pts1 = [(0,0), (0.5,0.25), (0.75,0.25), (1,0), (0.75,0.75), (0.5,0.75), (0,1), (0.25,0.5)]
     cvh1 = {(0, 1), (0.75, 0.75), (1, 0), (0, 0)}
-    assert set(convex_hull(pts1)) == cvh1
+
+    pt2 = [(0,0), (1,-1), (1,0), (1,1), (1.5, -0.5), (2,0)]
+    cvh2 = [(0,0), (1,-1), (1.5,-0.5), (2,0), (1,1)]
+
+    pt3 = [(0,0), (1,1), (1,0), (1,-1), (1.5, 0.5), (2,0)]
+    cvh3 = [(0,0), (1,1), (1.5,0.5), (2,0), (1,-1)]
+
+    # assert convex_hull(pt2) == cvh2
+    assert convex_hull(pt3) == cvh3
 
 if '--tests' in sys.argv:
     test_is_to_the_left()
@@ -692,8 +663,6 @@ for x in xrange(w):
                 p.nodes.add(n)
         populate_neighbours(n)
 
-# print [p.get_xy() for p in points[(3.25,4.25)].neighbours]
-
 # remove all useless points
 for x in xrange(w):
     for y in xrange(h):
@@ -702,6 +671,7 @@ for x in xrange(w):
         n.vor_pts = filter(lambda p: p not in useless_pts, n.vor_pts)
         # also update the global points dict
         for p in useless_pts:
+            # tell p's neighbours to forget p
             for ne in points[p].neighbours[n]:
                 ne.neighbours[n].remove(points[p])
             del points[p]
@@ -723,8 +693,7 @@ def polygons_are_dissimilar(pt1, pt2):
         return True
     else:
         node1, node2 = intersection
-        print 'similarity of', node1.get_xy(), 'and', node2.get_xy(),
-        print pixels_are_dissimilar(node1.rgb, node2.rgb)
+        assert len(intersection) == 2
         return pixels_are_dissimilar(node1.rgb, node2.rgb)
 
 def test_point_positions():
@@ -806,16 +775,11 @@ def find_all_visible_edges(p):
     #  then surely it encountered the (ne, p) edge
     visible_edges = [find_visible_edge(p, ne) for ne in slve_neighbours if len(ne.vedges) == 0]
 
-    if p.get_xy() == (2.75,3.75):
-        print 'there are', len(visible_edges), 'visible edges'
-        for q in visible_edges:
-            print [r.get_xy() for r in q]
-
     # check if two visible edge sequences are actually reversals of each other
     to_remove = set()
     for i in xrange(len(visible_edges)):
         for j in xrange(len(visible_edges)):
-            if i != j: # not necessary?
+            if i != j:
                 v, w = visible_edges[i], visible_edges[j]
                 # we found a pair, and neither i nor j is marked for removal
                 if v[1:] == list(reversed(w[1:])) and j not in to_remove and i not in to_remove:
@@ -848,9 +812,6 @@ def find_all_visible_edges(p):
         result.append(ve_object)
         for pt in v:
             pt.vedges.add(ve_object)
-
-    if p.get_xy() == (2.75,3.75):
-        print [[p.get_xy() for p in ve.get_endpoints()] for ve in result]
     return result
 
 # returns true if points a b and c are collinear
@@ -867,7 +828,6 @@ def is_straight_line(p1, p2, p3):
 # 1 - 2 - 3 yields the list [1,2,3]
 # 1 - 2 - 3 - 1 yields the list [1,2,3,1]
 def find_visible_edge(p1, p2):
-    # print 'p1', p1.get_xy(), 'p2', p2.get_xy()
     assert p1 in p2.all_neighbours()
     assert p2 in p1.all_neighbours()
 
@@ -875,13 +835,11 @@ def find_visible_edge(p1, p2):
     encountered = set([p1, p2])
     result = [p1]
     while True:
-        # print 'curr', curr.get_xy()
         slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, curr), curr.all_neighbours())
         slve_neighbours = keep_closest_collinear_neighbours(curr, slve_neighbours)
 
         if len(slve_neighbours) != 2:
             result.append(curr)
-            # print 'stopping because degree not 2'
             break
 
         result.append(curr)
@@ -895,36 +853,12 @@ def find_visible_edge(p1, p2):
         if curr not in encountered:
             encountered.add(curr)
         else:
-            # print 'stopping because already encountered'
             break
-    # print '*****************'
     return result
 
-# for p in points.values():
-#     ve_object_list = find_all_visible_edges(p)
-#     vedges += ve_object_list
-    # for ve in vedge:
-    #     if points[(7, 1)] in ve.points:
-    #         print p.get_xy(),
-
-p = points[(2.75,3.75)]
-point_list = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
-point_list = [p] + keep_closest_collinear_neighbours(p, point_list)
-find_all_visible_edges(p)
-
-print polygons_are_dissimilar(points[(2.75, 3.75)], points[(3.25, 3.25)])
-
-# for ne in p.all_neighbours():
-#     print 'neighbour', ne.get_xy(),
-#     if polygons_are_dissimilar(p,ne):
-#         print 'dissimilar'
-#     else:
-#         print 'similar'
-
-# p = points[(13.75,6.25)]
-# find_all_visible_edges(p)
-
-# print 'len', len(p.vedges)
+for p in points.values():
+    ve_object_list = find_all_visible_edges(p)
+    vedges += ve_object_list
 
 def test_visible_edges():
     global imagename
