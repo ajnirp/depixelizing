@@ -23,6 +23,10 @@ from OpenGL.GLU import *
 # http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
 window_id = -1
 
+# a global variable used for debugging
+# stores a list of point coordinate pairs
+point_list = []
+
 def draw_pixel_centre(x,y):
     # draw centre of each pixel
     glColor3ub(0, 255, 0)
@@ -95,6 +99,7 @@ def display_voronoi():
                 glVertex2f(IMAGE_SCALE*x_pt, IMAGE_SCALE*y_pt)
             glEnd()
             draw_pixel_centre(x, h - y - 1)
+    display_point_list()
     glFlush()
 
 def display_visible_edges():
@@ -111,9 +116,19 @@ def display_visible_edges():
     for x in xrange(w):
         for y in xrange(h):
             draw_pixel_centre(x, h - y - 1)
+    display_point_list()
     glFlush()
 
-def render_voronoi():
+def display_point_list():
+    global point_list
+    glColor3ub(0, 0, 255)
+    glBegin(GL_POINTS)
+    for p in point_list:
+        x, y = p.get_xy()
+        glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
+    glEnd()
+
+def render_voronoi(points = []):
     global window_id, im
     w, h = im.size
     glutInit()
@@ -142,6 +157,21 @@ def render_b_splines():
 
 def render_b_splines_optimized():
     pass
+
+def render(render_stage):
+    if render_stage == 'original':
+        render_original()
+    elif render_stage == 'voronoi':
+        render_voronoi()
+    elif render_stage == 'vedges':
+        render_visible_edges()
+    elif render_stage == 'bsplines':
+        render_b_splines()
+    elif render_stage == 'optimized':
+        render_b_splines_optimized()
+    else:
+        sys.stderr.write('unknown option for --render: ' +  render_stage + '\n')
+        exit(1)
 
 ''' rendering over'''
 
@@ -758,7 +788,6 @@ def find_all_visible_edges(p):
     #     print 'there are', len(visible_edges), 'visible edges'
     #     for q in visible_edges:
     #         print [r.get_xy() for r in q]
-    #         print '#######################'
 
     # check if two visible edge sequences are actually reversals of each other
     to_remove = set()
@@ -813,6 +842,7 @@ def is_straight_line(p1, p2, p3):
 # 1 - 2 - 3 yields the list [1,2,3]
 # 1 - 2 - 3 - 1 yields the list [1,2,3,1]
 def find_visible_edge(p1, p2):
+    # print 'p1', p1.get_xy(), 'p2', p2.get_xy()
     assert p1 in p2.all_neighbours()
     assert p2 in p1.all_neighbours()
 
@@ -820,11 +850,13 @@ def find_visible_edge(p1, p2):
     encountered = set([p1, p2])
     result = [p1]
     while True:
+        # print 'curr', curr.get_xy()
         slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, curr), curr.all_neighbours())
         slve_neighbours = keep_closest_collinear_neighbours(curr, slve_neighbours)
 
         if len(slve_neighbours) != 2:
             result.append(curr)
+            # print 'stopping because degree not 2'
             break
 
         result.append(curr)
@@ -838,8 +870,9 @@ def find_visible_edge(p1, p2):
         if curr not in encountered:
             encountered.add(curr)
         else:
+            # print 'stopping because encountered', curr.get_xy()
             break
-    
+    # print '*****************'
     return result
 
 for p in points.values():
@@ -848,6 +881,21 @@ for p in points.values():
     # for ve in vedge:
     #     if points[(7, 1)] in ve.points:
     #         print p.get_xy(),
+
+p = points[(14.75,7.25)]
+point_list = [p] + list(p.all_neighbours())
+
+# for ne in p.all_neighbours():
+#     print 'neighbour', ne.get_xy(),
+#     if polygons_are_dissimilar(p,ne):
+#         print 'dissimilar'
+#     else:
+#         print 'similar'
+
+# p = points[(13.75,6.25)]
+# find_all_visible_edges(p)
+
+# print 'len', len(p.vedges)
 
 def test_visible_edges():
     global imagename
@@ -881,16 +929,4 @@ if '--render' in sys.argv:
         sys.stderr.write('--render needs an argument\n')
         exit(1)
     render_stage = sys.argv[index+1]
-    if render_stage == 'original':
-        render_original()
-    elif render_stage == 'voronoi':
-        render_voronoi()
-    elif render_stage == 'vedges':
-        render_visible_edges()
-    elif render_stage == 'bsplines':
-        render_b_splines()
-    elif render_stage == 'optimized':
-        render_b_splines_optimized()
-    else:
-        sys.stderr.write('unknown option for --render: ' +  render_stage + '\n')
-        exit(1)
+    render(render_stage)
