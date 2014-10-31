@@ -2,7 +2,7 @@
 # e.g. python main.py
 # to enable inline tests, python main.py --tests
 
-IMAGE_SCALE  = 16
+IMAGE_SCALE  = 28
 
 import random, sys
 
@@ -127,9 +127,9 @@ def display_visible_edges():
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for v in vedges:
-        glColor3ub(0, 0, 0)
-        # glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-        glBegin(GL_LINE_LOOP)
+        # glColor3ub(0, 0, 0)
+        glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
+        glBegin(GL_LINE_STRIP)
         for p in v.points:
             x, y = p.get_xy()
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
@@ -149,7 +149,38 @@ def display_point_list():
         glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
     glEnd()
 
-def render_voronoi(points = []):
+# draw the similarity graph
+def display_similarity():
+    global im
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glColor3ub(0, 0, 0)
+    glBegin(GL_LINES)
+    for x in xrange(w):
+        for y in xrange(h):
+            n = get_node(x, y, im)
+            for ne in n.neighbours:
+                nx, ny = n.get_xy()
+                nex, ney = ne.get_xy()
+                ny, ney = h-ny-1, h-ney-1
+                glVertex2f(IMAGE_SCALE*(nx+0.5), IMAGE_SCALE*(ny+0.5))
+                glVertex2f(IMAGE_SCALE*(nex+0.5), IMAGE_SCALE*(ney+0.5))
+    glEnd()
+    glFlush()
+
+def render_similarity():
+    global window_id, im
+    w, h = im.size
+    glutInit()
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
+    window_id = glutCreateWindow('Similarity Graph')
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutDisplayFunc(display_similarity)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
+    glutMainLoop()
+
+def render_voronoi():
     global window_id, im
     w, h = im.size
     glutInit()
@@ -182,6 +213,8 @@ def render_b_splines_optimized():
 def render(render_stage):
     if render_stage == 'original':
         render_original()
+    elif render_stage == 'similarity':
+        render_similarity()
     elif render_stage == 'voronoi':
         render_voronoi()
     elif render_stage == 'vedges':
@@ -205,8 +238,9 @@ imagename = 'img/invaders_01.png'
 imagename = 'img/invaders_02.png'
 imagename = 'img/smb_jump.png'
 imagename = 'img/smw_boo.png'
-imagename = 'img/sma_peach_01.png'
 imagename = 'img/smw_cape_mario_yoshi.png'
+imagename = 'img/sma_peach_01.png'
+imagename = 'img/smw_dolphin.png'
 
 im = Image.open(imagename)
 w, h = im.size
@@ -609,7 +643,7 @@ def test_convex_hull():
     pt3 = [(0,0), (1,1), (1,0), (1,-1), (1.5, 0.5), (2,0)]
     cvh3 = [(0,0), (1,1), (1.5,0.5), (2,0), (1,-1)]
 
-    # assert convex_hull(pt2) == cvh2
+    # assert convex_hull(pt2) == cvh2 # FAILS
     assert convex_hull(pt3) == cvh3
 
 if '--tests' in sys.argv:
@@ -764,11 +798,14 @@ def keep_closest_collinear_neighbours(p, neighbours):
 def find_all_visible_edges(p):
     # keep only neighbours with which I have a single-length visible edge
     slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
+    # print 1, slve_neighbours
     # keep only my closest neighbours along a line
     slve_neighbours = keep_closest_collinear_neighbours(p, slve_neighbours)
+    # print 2, slve_neighbours
     # remove neighbours which already have a visible edge *sequence* with me
     for ve_object in p.vedges:
         slve_neighbours = filter(lambda ne: ne not in ve_object.points, slve_neighbours)
+    # print 3, slve_neighbours
 
     # should we explore the visible edge with (p, ne) as a starting edge?
     # yes, if ne has not been explored before. if it has,
@@ -782,7 +819,7 @@ def find_all_visible_edges(p):
             if i != j:
                 v, w = visible_edges[i], visible_edges[j]
                 # we found a pair, and neither i nor j is marked for removal
-                if v[1:] == list(reversed(w[1:])) and j not in to_remove and i not in to_remove:
+                if v[1:-1] == list(reversed(w[1:-1])) and j not in to_remove and i not in to_remove:
                     # add i to to_remove. we could add j too, either way works
                     to_remove.add(i)
     # perform the removal
@@ -791,19 +828,22 @@ def find_all_visible_edges(p):
     # if we only have two visible edge sequences, they are actually
     # two disjoint parts of one single visible edge sequence. so, we merge them
     if len(visible_edges) == 2:
-        visible_edge1, visible_edge2 = visible_edges[0][1:], visible_edges[1][1:]
+        visible_edge1, visible_edge2 = visible_edges[0], visible_edges[1]
 
         # we need to check if either of the two sequences is a cycle
         is_cycle1 = visible_edge1[0] == visible_edge1[-1]
         is_cycle2 = visible_edge2[0] == visible_edge2[-1]
-        
-        if is_cycle1 and is_cycle2:
-            visible_edges = [visible_edge1[:-1] + visible_edge2]
-        elif is_cycle1 and not is_cycle2:
-            visible_edges = [list(reversed(visible_edge2))[:-1] + visible_edge1]
-        elif is_cycle2 and not is_cycle1:
-            visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
-        else:
+
+        # if is_cycle1 and is_cycle2:
+        #     visible_edges = [visible_edge1[:-1] + visible_edge2]
+        # elif is_cycle1 and not is_cycle2:
+        #     visible_edges = [list(reversed(visible_edge2))[:-1] + visible_edge1]
+        # elif is_cycle2 and not is_cycle1:
+        #     visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
+        # else:
+        #     visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
+
+        if not is_cycle1 and not is_cycle2:
             visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
 
     result = []
@@ -853,35 +893,42 @@ def find_visible_edge(p1, p2):
         if curr not in encountered:
             encountered.add(curr)
         else:
+            result.append(curr)
             break
+
+    print result
+    global point_list
+    point_list = result
     return result
 
+# p = points[(14.25, 3.25)]
+# vedges += find_all_visible_edges(p)
+
 for p in points.values():
-    ve_object_list = find_all_visible_edges(p)
-    vedges += ve_object_list
+    vedges += find_all_visible_edges(p)
 
 def test_visible_edges():
     global imagename
     if imagename == 'img/smw_boo.png':
         v = points[(7,1)].vedges
         assert len(v) == 1
-        assert len(v.pop().points) == 66
+        assert len(v.pop().points) == 67
 
         v = points[(3.25, 4.25)].vedges
         assert len(v) == 1
-        assert len(v.pop().points) == 58
+        assert len(v.pop().points) == 59
 
         v = points[(4.25, 5.25)].vedges
         assert len(v) == 1
-        assert len(v.pop().points) == 8
+        assert len(v.pop().points) == 9
 
         v = points[(9.25, 6.25)].vedges
         assert len(v) == 1
-        assert len(v.pop().points) == 22
+        assert len(v.pop().points) == 23
 
         v = points[(3.25, 10.25)].vedges
         assert len(v) == 1
-        assert len(v.pop().points) == 24
+        assert len(v.pop().points) == 25
 
 if '--tests' in sys.argv:
     test_visible_edges()
