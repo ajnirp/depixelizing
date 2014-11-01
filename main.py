@@ -884,6 +884,18 @@ for p in points.values():
 
 def test_visible_edges():
     global imagename
+
+    num_vedges = { 'img/smw_boo.png' : 6,
+                   'img/invaders_01.png' : 4,
+                   'img/invaders_02.png' : 3,
+                   'img/invaders_03.png' : 3,
+                   'img/invaders_04.png' : 3,
+                   'img/smw_help.png' : 8,
+                }
+
+    if imagename in num_vedges:
+        assert len(vedges) == num_vedges[imagename]
+
     if imagename == 'img/smw_boo.png':
         v = points[(7,1)].vedges
         assert len(v) == 1
