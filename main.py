@@ -89,17 +89,6 @@ def keyboard_original(key, x, y):
         if sys.platform == "darwin":
             exit(0)
 
-def render_original():
-    global window_id
-    glutInit()
-    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Original Image')
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(display_original)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
-    glutMainLoop()
-
 def display_voronoi():
     global im
     w, h = im.size
@@ -173,64 +162,36 @@ def display_similarity():
     glEnd()
     glFlush()
 
-def render_similarity():
-    global window_id, im, imagename
-    w, h = im.size
-    glutInit()
-    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Similarity Graph - ' + imagename)
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(display_similarity)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
-    glutMainLoop()
-
-def render_voronoi():
-    global window_id, im, imagename
-    w, h = im.size
-    glutInit()
-    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Voronoi Image - ' + imagename)
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(display_voronoi)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
-    glutMainLoop()
-
-def render_visible_edges():
-    global window_id, im, imagename
-    w, h = im.size
-    glutInit()
-    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
-    window_id = glutCreateWindow('Visible Edges - ' + imagename)
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-    glutDisplayFunc(display_visible_edges)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
-    glutMainLoop()
-
-def render_b_splines():
+def display_bsplines():
     pass
 
-def render_b_splines_optimized():
+def display_optimized():
     pass
 
 def render(render_stage):
+    global window_id, im, imagename
+    w, h = im.size
+    glutInit()
+    glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
+    window_id = glutCreateWindow(render_stage + ' - '  + imagename)
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
     if render_stage == 'original':
-        render_original()
+        glutDisplayFunc(display_original)
     elif render_stage == 'similarity':
-        render_similarity()
+        glutDisplayFunc(display_similarity)
     elif render_stage == 'voronoi':
-        render_voronoi()
+        glutDisplayFunc(display_voronoi)
     elif render_stage == 'vedges':
-        render_visible_edges()
+        glutDisplayFunc(display_visible_edges)
     elif render_stage == 'bsplines':
-        render_b_splines()
+        glutDisplayFunc(display_bsplines)
     elif render_stage == 'optimized':
-        render_b_splines_optimized()
+        glutDisplayFunc(display_optimized)
     else:
-        sys.stderr.write('unknown option for --render: ' +  render_stage + '\n')
-        exit(1)
+        glutDisplayFunc(display_original)
+    glutKeyboardFunc(keyboard_original)
+    init_original()
+    glutMainLoop()
 
 ''' rendering over'''
 
