@@ -2,9 +2,9 @@
 # e.g. python main.py
 # to enable inline tests, python main.py --tests
 
-IMAGE_SCALE  = 16
+IMAGE_SCALE  = 24
 
-import random, sys
+import math, random, sys
 
 from classes import *
 from hull import *
@@ -143,7 +143,6 @@ def display_point_list():
         glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
     glEnd()
 
-# draw the similarity graph
 def display_similarity():
     global im
     w, h = im.size
@@ -239,8 +238,6 @@ for row in xrange(h):
                     neighbour = get_node(col+x, row+y, im)
                     n.make_conn(neighbour)
 
-'''tests'''
-
 def test_node_corresponds_to_image(im):
     for x in xrange(col):
         for y in xrange(row):
@@ -277,6 +274,8 @@ if '--tests' in sys.argv:
     test_number_of_neighbours_is_correct(im)
     test_neighbours_are_mutual(im)
 
+'''colour comparisons'''
+
 # convert rgb to yuv
 def rgb2yuv(r,g,b):
     r1 = r / 255.0
@@ -298,6 +297,14 @@ def pixels_are_dissimilar(rgb1, rgb2):
     udiff = abs(u1 - u2) > 7.0/255
     vdiff = abs(v1 - v2) > 6.0/255
     return ydiff or udiff or vdiff
+
+def shading_edge(rgb1, rgb2):
+    y1, u1, v1 = rgb2yuv(*rgb1)
+    y2, u2, v2 = rgb2yuv(*rgb2)
+    dist = (y1 - y2)**2 +(u1 - u2)**2 + (v1 - v2)**2
+    return (dist <= (float(100)/255)**2)
+
+'''comparisons over'''
 
 # remove dissimilar edges by yuv metric
 for x in xrange(w):
@@ -594,7 +601,8 @@ def find_useless_pts(n):
 
 '''tests'''
 # remember, our system is left-handed
-# (0, 0) is the topleft pixel, not the bottomleft pixel
+# (0, 0) is the topleft pixel
+# and NOT the bottom-left pixel
 def test_is_to_the_left():
     assert is_to_the_left((-1,1), (0,0), (1,1)) is False
     assert is_to_the_left((0,0), (0,0), (1,1)) is False
@@ -619,10 +627,10 @@ if '--tests' in sys.argv:
     test_convex_hull()
 
 points = {}
-# points is a dict mapping (x,y) to the Point
-# present there. We could use an array because the
-# Point locations are quantized to quarter-pixels, but there are 4wh possible
-# point locations, which would mean a very sparse array and a lot of wasted
+# points is a dict mapping (x,y) to the Point present there.
+# We could use an array because the Point locations are quantized
+# to quarter-pixels, but there are 4wh possible point locations,
+# which would mean a very sparse array and a lot of wasted
 # memory. So the dict is a better way to store all the Points
 
 # populate the neighbours for each point belonging to node n
@@ -678,10 +686,10 @@ for x in xrange(w):
                 ne.neighbours[n].remove(points[p])
             del points[p]
 
-# pt1 and pt2 are two polygon vertices in the simplified voronoi diagram
-# this function checks if the reshaped pixels corresponding to the two polygons on
-# either side of the edge joining pt1 to pt2 are different enough for the edge
-# to be classified as visible
+# pt1 and pt2 are two polygon vertices in the simplified voronoi
+# diagram this function checks if the reshaped pixels corresponding
+# to the two polygons on either side of the edge joining pt1 to pt2
+# are different enough for the edge to be classified as visible
 def polygons_are_dissimilar(pt1, pt2):
     # get the pixels associated with both points and take the intersection of the two sets
     # this either has size 2 or size 1
@@ -762,7 +770,8 @@ def keep_closest_collinear_neighbours(p, neighbours):
 
     return filter(lambda p: p not in to_remove, neighbours)
 
-# p is a point for which we want to find all containing visible edge sequences
+# p is a point for which we want to find all
+# containing visible edge sequences
 def find_all_visible_edges(p):
     # keep only neighbours with which I have a single-length visible edge
     slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
@@ -802,15 +811,6 @@ def find_all_visible_edges(p):
         is_cycle1 = visible_edge1[0] == visible_edge1[-1]
         is_cycle2 = visible_edge2[0] == visible_edge2[-1]
 
-        # if is_cycle1 and is_cycle2:
-        #     visible_edges = [visible_edge1[:-1] + visible_edge2]
-        # elif is_cycle1 and not is_cycle2:
-        #     visible_edges = [list(reversed(visible_edge2))[:-1] + visible_edge1]
-        # elif is_cycle2 and not is_cycle1:
-        #     visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
-        # else:
-        #     visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
-
         if not is_cycle1 and not is_cycle2:
             visible_edges = [list(reversed(visible_edge1))[:-1] + visible_edge2]
 
@@ -832,8 +832,8 @@ def is_straight_line(p1, p2, p3):
     slope2 = float(c[0]-b[0]) / float(c[1]-b[1])
     return slope1 == slope2
 
-# (p1, p2) is the first edge of the visible edge with p1 as an endpoint
-# examples
+# (p1, p2) is the first edge of the visible
+# edge with p1 as an endpoint. Examples:
 # 1 - 2 - 3 yields the list [1,2,3]
 # 1 - 2 - 3 - 1 yields the list [1,2,3,1]
 def find_visible_edge(p1, p2):
@@ -872,6 +872,94 @@ def find_visible_edge(p1, p2):
 
 for p in points.values():
     vedges |= set(find_all_visible_edges(p))
+
+def merge_vedges(p, edge1, edge2, m):
+    global vedges
+
+    initial = len(vedges)
+
+    e1, e2 = edge1.points, edge2.points
+
+    if e1[0] != p: e1.reverse() # CHECK
+    if e2[0] != p: e2.reverse() # THIS!
+
+    is_cycle1 = e1[0] == e1[-1]
+    is_cycle2 = e2[0] == e2[-1]
+    if is_cycle1 and is_cycle2:
+        e = e1[:-1] + e2
+    elif is_cycle1 and not is_cycle2:
+        e = list(reversed(e2))[:-1] + e1
+    else: # CHECK [ABOVE] THIS
+        e = list(reversed(e1))[:-1] + e2
+
+    edge = VisibleEdge(e)
+
+    p.vedges.remove(edge1)
+    p.vedges.remove(edge2)
+    if edge1 in vedges: # TODO
+        vedges.remove(edge1)
+    if edge2 in vedges:
+        vedges.remove(edge2)
+
+    vedges.add(edge)
+    p.vedges.add(edge)
+
+    if initial > len(vedges): # less than not possible, right?
+        print "merging by", m, "::", initial, ">", len(vedges)
+        point_list.append(p)
+
+def angle(o, a, b):
+    def d(l, m): return (l.x - m.x)**2 + (l.y - m.y)**2
+    P12, P23, P13 = d(o, a), d(a, b), d(o, b)
+    angle = math.acos((P12 + P13 - P23) / (2 * math.sqrt(P12 * P13)))
+    return math.degrees(angle) # converted from radians
+
+def resolve_juction(p):
+    global vedges, count
+
+    assert len(p.vedges) == 3
+    v1, v2, v3 = p.vedges
+
+    ne1 = v1.points[1] if v1.points[0] == p else v1.points[-2]
+    ne2 = v2.points[1] if v2.points[0] == p else v2.points[-2]
+    ne3 = v3.points[1] if v3.points[0] == p else v3.points[-2]
+    e1, e2, e3 = map(lambda ne: is_contour_edge(p, ne), [ne1, ne2, ne3])
+
+    if e1 and e2 and not e3:
+        merge_vedges(p, v1, v2, "contour edges")
+    elif e2 and e3 and not e1:
+        merge_vedges(p, v2, v3, "contour edges")
+    elif e3 and e1 and not e2:
+        merge_vedges(p, v3, v1, "contour edges")
+    else: # connect edges 180 degrees apart
+        a1, a2, a3 = angle(p, ne1, ne2), angle(p, ne2, ne3), angle(p, ne3, ne1)
+        if a1 > a2 and a1 > a3:
+            point_list.append(ne3)
+            merge_vedges(p, v1, v2, "closest angle")
+        elif a2 > a3 and a2 > a1:
+            point_list.append(ne1)
+            merge_vedges(p, v2, v3, "closest angle")
+        elif a3 > a1 and a3 > a2:
+            point_list.append(ne2)
+            merge_vedges(p, v3, v1, "closest angle")
+        else: # Exclusive conditions??
+            print "#debug: couldn't merge ANY edges\n"
+
+def is_contour_edge(pt1, pt2):
+    intersection = pt1.nodes & pt2.nodes
+    if len(intersection) == 1:
+        return True
+    else:
+        node1, node2 = intersection
+        assert len(intersection) == 2
+        return not shading_edge(node1.rgb, node2.rgb)
+
+for p in points.values():
+    if len(p.vedges) > 3:
+        print "unlikely case:", p, len(p.vedges)
+    if len(p.vedges) == 3:
+        # point_list.append(p)
+        resolve_juction(p)
 
 def test_visible_edges():
     global imagename
