@@ -892,20 +892,22 @@ def merge_vedges(p, edge1, edge2, m):
     else: # CHECK [ABOVE] THIS
         e = list(reversed(e1))[:-1] + e2
 
-    edge = VisibleEdge(e)
+    new_edge = VisibleEdge(e)
 
-    p.vedges.remove(edge1)
-    p.vedges.remove(edge2)
-    if edge1 in vedges: # TODO
-        vedges.remove(edge1)
-    if edge2 in vedges:
-        vedges.remove(edge2)
+    vedges.remove(edge1)
+    vedges.remove(edge2)
 
-    vedges.add(edge)
-    p.vedges.add(edge)
+    for pt in new_edge.points:
+        if edge1 in pt.vedges:
+            pt.vedges.remove(edge1)
+        if edge2 in pt.vedges:
+            pt.vedges.remove(edge2)
+        pt.vedges.add(new_edge)
 
-    if initial > len(vedges): # less than not possible, right?
-        print "merging by", m, "::", initial, ">", len(vedges)
+    vedges.add(new_edge)
+
+    if initial <= len(vedges): # less than not possible, right?
+        print p, "merging by", m, "::", initial, ">", len(vedges)
         point_list.append(p)
 
 def angle(o, a, b):
