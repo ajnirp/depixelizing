@@ -207,7 +207,7 @@ def process_command_line_arg(argname, necessary=False, missing_error=''):
         sys.stderr.write(argname + ' needs an argument\n')
         exit(1)
     return sys.argv[index+1]
-    
+
 imagename = process_command_line_arg('--image', True, 'need an image to convert')
 
 im = Image.open(imagename)
@@ -723,8 +723,8 @@ if '--tests' in sys.argv:
     test_point_neighbours()
     test_polygons_are_dissimilar()
 
-# global list of visible edge sequences
-vedges = []
+# global "list" of visible edge sequences
+vedges = set()
 
 # pt is a point at which three visible edges are meeting
 # this function merges them as per section 3.3 on page 5
@@ -766,17 +766,11 @@ def keep_closest_collinear_neighbours(p, neighbours):
 def find_all_visible_edges(p):
     # keep only neighbours with which I have a single-length visible edge
     slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, p), p.all_neighbours())
-    if p.get_xy() == (16.75,4.25):
-        print 1, slve_neighbours
     # keep only my closest neighbours along a line
     slve_neighbours = keep_closest_collinear_neighbours(p, slve_neighbours)
-    if p.get_xy() == (16.75,4.25):
-        print 2, slve_neighbours
     # remove neighbours which already have a visible edge *sequence* with me
     for ve_object in p.vedges:
         slve_neighbours = filter(lambda ne: ne not in ve_object.points, slve_neighbours)
-    if p.get_xy() == (16.75,4.25):
-        print 3, slve_neighbours
 
     # should we explore the visible edge with (p, ne) as a starting edge?
     # yes, if ne has not been explored before. if it has,
@@ -826,9 +820,6 @@ def find_all_visible_edges(p):
         result.append(ve_object)
         for pt in v:
             pt.vedges.add(ve_object)
-
-    if p.get_xy() == (16.75, 4.25):
-        print visible_edges
 
     return result
 
@@ -880,7 +871,7 @@ def find_visible_edge(p1, p2):
     return result
 
 for p in points.values():
-    vedges += find_all_visible_edges(p)
+    vedges |= set(find_all_visible_edges(p))
 
 def test_visible_edges():
     global imagename

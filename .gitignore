@@ -6,3 +6,4 @@ dep_old/
 a.out
 *.pyc
 curvey-master/
+*.bak
