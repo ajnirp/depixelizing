@@ -1005,13 +1005,21 @@ from scipy import *
 from scipy.interpolate import *
 from matplotlib.pyplot import *
 
+density = 100
 for v in vedges:
-    x = [p.x for p in v.points]
-    y = [p.y for p in v.points]
-    # tck = splrep(x, y, k=2)
-    # x2 = linspace(0, 10, 200)
-    # y2 = splev(x2, tck)
-    plot(x, y, 'o', x, y)
+    x, y = [], []
+    for p in v.points:
+        if x == []:
+            x.append(p.x)
+            y.append(p.y)
+        elif p.x > x[-1]:
+            x.append(p.x)
+            y.append(p.y)
+        else: break
+    tck = splrep(x, y, k=2)
+    x2 = linspace(x[0], x[-1], (x[-1]-x[0])*density)
+    y2 = splev(x2, tck)
+    plot(x, y, 'o', x2, y2)
     show()
     break
 
