@@ -936,13 +936,13 @@ def resolve_juction(p):
     else: # connect edges 180 degrees apart
         a1, a2, a3 = angle(p, ne1, ne2), angle(p, ne2, ne3), angle(p, ne3, ne1)
         if a1 > a2 and a1 > a3:
-            point_list.append(ne3)
+            # point_list.append(ne3)
             merge_vedges(p, v1, v2, "closest angle")
         elif a2 > a3 and a2 > a1:
-            point_list.append(ne1)
+            # point_list.append(ne1)
             merge_vedges(p, v2, v3, "closest angle")
         elif a3 > a1 and a3 > a2:
-            point_list.append(ne2)
+            # point_list.append(ne2)
             merge_vedges(p, v3, v1, "closest angle")
         else: # Exclusive conditions??
             print "#debug: couldn't merge ANY edges\n"
@@ -1000,6 +1000,20 @@ def test_visible_edges():
 
 if '--tests' in sys.argv:
     test_visible_edges()
+
+from scipy import *
+from scipy.interpolate import *
+from matplotlib.pyplot import *
+
+for v in vedges:
+    x = [p.x for p in v.points]
+    y = [p.y for p in v.points]
+    # tck = splrep(x, y, k=2)
+    # x2 = linspace(0, 10, 200)
+    # y2 = splev(x2, tck)
+    plot(x, y, 'o', x, y)
+    show()
+    break
 
 render_stage = process_command_line_arg('--render')
 if render_stage is not None:
