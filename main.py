@@ -8,6 +8,7 @@ import math, random, sys
 
 from classes import *
 from hull import *
+from bsplines import *
 
 if sys.platform == "darwin":
     from PIL import Image
@@ -117,13 +118,15 @@ def display_pixel_centres(w, h):
         for y in xrange(h):
             draw_pixel_centre(x, h - y - 1)
 
+def set_random_color():
+    glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
+
 def display_visible_edges():
     global im, vedges
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for v in vedges:
-        # glColor3ub(0, 0, 0)
-        glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
+        set_random_color()
         glBegin(GL_LINE_STRIP)
         for p in v.points:
             x, y = p.get_xy()
@@ -162,7 +165,21 @@ def display_similarity():
     glFlush()
 
 def display_bsplines():
-    pass
+    global im, vedges
+    w, h = im.size
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glColor3ub(0, 0, 0)
+    for v in vedges:
+        if v.bspline is None:
+            continue
+        set_random_color()
+        glBegin(GL_LINE_STRIP)
+        for x,y in v.bspline:
+            y = h-y
+            glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*y)
+        glEnd()
+    display_point_list()
+    glFlush()
 
 def display_optimized():
     pass
@@ -1001,27 +1018,58 @@ def test_visible_edges():
 if '--tests' in sys.argv:
     test_visible_edges()
 
-from scipy import *
-from scipy.interpolate import *
-from matplotlib.pyplot import *
+# for v in vedges:
+#     v.bspline = bspline_eval(v.points)
 
-density = 100
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate as si
+
+point_list = []
+
+# credit - http://stackoverflow.com/questions/24612626/b-spline-interpolation-with-python
+DEGREE, SMOOTHNESS = 3, 150
 for v in vedges:
-    x, y = [], []
-    for p in v.points:
-        if x == []:
-            x.append(p.x)
-            y.append(p.y)
-        elif p.x > x[-1]:
-            x.append(p.x)
-            y.append(p.y)
-        else: break
-    tck = splrep(x, y, k=2)
-    x2 = linspace(x[0], x[-1], (x[-1]-x[0])*density)
-    y2 = splev(x2, tck)
-    plot(x, y, 'o', x2, y2)
-    show()
-    break
+# for v in points[(16,5)].vedges:
+    pts = [p.get_xy() for p in v.points]
+    degree = DEGREE
+
+    # cycle check
+    periodic = False
+    if pts[0] == pts[-1]:
+        pts.pop()
+        periodic = True
+
+    point_list += [points[pts[0]], points[pts[-1]]]
+
+    pts = pts + pts[0:degree + 1]
+    # print pts
+
+    pts = np.array(pts)
+    n_points = len(pts)
+    x, y = pts[:,0], pts[:,1]
+
+    t = range(len(x))
+    ipl_t = np.linspace(1.0, len(pts) - degree, SMOOTHNESS)
+
+    x_tup = si.splrep(t, x, k=degree, per=periodic)
+    y_tup = si.splrep(t, y, k=degree, per=periodic)
+    x_list = list(x_tup)
+    xl = x.tolist()
+    # x_list[1] = [0.0] + xl + [0.0, 0.0, 0.0, 0.0]
+
+    y_list = list(y_tup)
+    yl = y.tolist()
+    # y_list[1] = [0.0] + yl + [0.0, 0.0, 0.0, 0.0]
+
+    # x_i = si.splev(ipl_t, x_list)
+    # y_i = si.splev(ipl_t, y_list)
+    x_i = si.splev(ipl_t, x_tup)
+    y_i = si.splev(ipl_t, y_tup)
+
+    v.bspline = zip(x_i, y_i)
+
+# assert len(vedges) * 2 == len(point_list)
 
 render_stage = process_command_line_arg('--render')
 if render_stage is not None:

@@ -72,7 +72,7 @@ class VisibleEdge(object):
     def __init__(self, points=[]):
         # list of points comprising the visible edge
         self.points = points
-        self.b_spline = None
+        self.bspline = None
 
     def get_endpoints(self):
         return (self.points[0], self.points[-1])
