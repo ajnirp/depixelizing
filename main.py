@@ -8,7 +8,6 @@ import math, random, sys
 
 from classes import *
 from hull import *
-from bsplines import *
 
 if sys.platform == "darwin":
     from PIL import Image
