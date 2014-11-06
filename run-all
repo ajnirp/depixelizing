@@ -2,5 +2,5 @@
 
 Dir.glob('img/*.png') do |image|
 	puts image
-	`python main.py --tests --render bsplines --image #{image}`
+	`python main.py --tests --image #{image} --render voronoi`
 end

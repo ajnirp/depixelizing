@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
 
-# usage: python main.py
-# e.g. python main.py
-# to enable inline tests, python main.py --tests
+# usage: python main.py --render voronoi --image input_file.png --tests --centres --scale 1 --save output_file.png
+# optional arguments: --tests, --centres, --scale, --save
 
-IMAGE_SCALE  = 24
-
-import math, random, sys
+import sys
 
 from classes import *
 from hull import *
+from helpers import *
 
 if sys.platform == "darwin":
     from PIL import Image
 else:
     import Image
 
-'''rendering code'''
+IMAGE_SCALE = int(process_command_line_arg('--scale', necessary=False, needs_arg=True))
+if IMAGE_SCALE is None:
+    IMAGE_SCALE = 24
 
-from OpenGL.GL import *
-from OpenGL.GLUT import *
-from OpenGL.GLU import *
+'''rendering code'''
 
 # http://www.de-brauwer.be/wiki/wikka.php?wakka=PyOpenGLSierpinski
 window_id = -1
@@ -29,50 +27,13 @@ window_id = -1
 # stores a list of point coordinate pairs
 point_list = []
 
-def draw_pixel_centre(x,y):
-    # draw centre of each pixel
-    global im
-    w, h = im.size
-    r, g, b = get_node(x, h-y-1, im).rgb
-    glColor3ub(r, g, b)
-    perturb = 0.075
-
-    points = [(IMAGE_SCALE*(x+0.5-perturb), IMAGE_SCALE*(y+0.5-perturb)),
-              (IMAGE_SCALE*(x+0.5-perturb), IMAGE_SCALE*(y+0.5+perturb)),
-              (IMAGE_SCALE*(x+0.5+perturb), IMAGE_SCALE*(y+0.5+perturb)),
-              (IMAGE_SCALE*(x+0.5+perturb), IMAGE_SCALE*(y+0.5-perturb))]
-
-    # fill
-    glBegin(GL_POLYGON)
-    for x, y in points:
-        glVertex2f(x, y)
-    glEnd()
-
-    # stroke
-    glColor3ub(255-r, 255-g, 255-b)
-    glBegin(GL_LINE_LOOP)
-    for x, y in points:
-        glVertex2f(x, y)
-    glEnd()
-
-def init_original():
-    global w,h
-    ww = w * IMAGE_SCALE
-    hh = h * IMAGE_SCALE
-    glClearColor(1.0, 1.0, 1.0, 0.0)
-    glColor3f(0.0, 0.0, 0.0)
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluOrtho2D(0, ww, 0, hh)
-    glPointSize(3)
-
 def display_original():
-    global im
+    global im, opengl_buffer
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for x in xrange(w):
         for y in xrange(h):
-            r, g, b = get_node(x, y, im).rgb
+            r, g, b = get_node(x, y, im, nodes).rgb
             y = h - y - 1
             glColor3ub(r, g, b)
             glBegin(GL_QUADS)
@@ -81,23 +42,16 @@ def display_original():
             glVertex2f(IMAGE_SCALE*(x+1), IMAGE_SCALE*(y+1))
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(y+1))
             glEnd()
+    glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
 
-# note: exits program on mac
-def keyboard_original(key, x, y):
-    global window_id
-    if key == chr(27):
-        glutDestroyWindow(window_id)
-        if sys.platform == "darwin":
-            exit(0)
-
 def display_voronoi():
-    global im
+    global im, opengl_buffer, nodes
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for x in xrange(w):
         for y in xrange(h):
-            n = get_node(x, y, im)
+            n = get_node(x, y, im, nodes)
             r, g, b = n.rgb
             glColor3ub(r, g, b)
             if '--lines' in sys.argv:
@@ -110,20 +64,13 @@ def display_voronoi():
                 glVertex2f(IMAGE_SCALE*x_pt, IMAGE_SCALE*y_pt)
             glEnd()
     if '--centres' in sys.argv:
-        display_pixel_centres(w, h)
+        draw_pixel_centres(w, h, im, nodes, IMAGE_SCALE)
     display_point_list()
+    glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
 
-def display_pixel_centres(w, h):
-    for x in xrange(w):
-        for y in xrange(h):
-            draw_pixel_centre(x, h - y - 1)
-
-def set_random_color():
-    glColor3ub(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-
 def display_visible_edges():
-    global im, vedges
+    global im, vedges, opengl_buffer, nodes
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     for v in vedges:
@@ -134,8 +81,9 @@ def display_visible_edges():
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(h-y))
         glEnd()
     if '--centres' in sys.argv:
-        display_pixel_centres(w, h)
+        draw_pixel_centres(w, h, im, nodes, IMAGE_SCALE)
     display_point_list()
+    glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
 
 def display_point_list():
@@ -148,14 +96,14 @@ def display_point_list():
     glEnd()
 
 def display_similarity():
-    global im
+    global im, opengl_buffer
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glColor3ub(0, 0, 0)
     glBegin(GL_LINES)
     for x in xrange(w):
         for y in xrange(h):
-            n = get_node(x, y, im)
+            n = get_node(x, y, im, nodes)
             for ne in n.neighbours:
                 nx, ny = n.get_xy()
                 nex, ney = ne.get_xy()
@@ -163,6 +111,7 @@ def display_similarity():
                 glVertex2f(IMAGE_SCALE*(nx+0.5), IMAGE_SCALE*(ny+0.5))
                 glVertex2f(IMAGE_SCALE*(nex+0.5), IMAGE_SCALE*(ney+0.5))
     glEnd()
+    glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
 
 def display_bsplines():
@@ -180,6 +129,7 @@ def display_bsplines():
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*y)
         glEnd()
     display_point_list()
+    glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
 
 def display_optimized():
@@ -189,9 +139,10 @@ def render(render_stage):
     global window_id, im, imagename
     w, h = im.size
     glutInit()
+    glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS)
     glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
     window_id = glutCreateWindow(render_stage + ' - '  + imagename)
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA)
     if render_stage == 'original':
         glutDisplayFunc(display_original)
     elif render_stage == 'similarity':
@@ -206,39 +157,44 @@ def render(render_stage):
         glutDisplayFunc(display_optimized)
     else:
         glutDisplayFunc(display_original)
-    glutKeyboardFunc(keyboard_original)
-    init_original()
+    glutKeyboardFunc(process_keyboard_input)
+    init_scene(w, h, IMAGE_SCALE)
     glutMainLoop()
 
 ''' rendering over'''
 
-def process_command_line_arg(argname, necessary=False, missing_error=''):
-    if argname not in sys.argv:
-        if necessary:
-            sys.stderr.write(missing_error + '\n')
-            exit(1)
-        else:
-            return None
-    index = sys.argv.index(argname)
-    if len(sys.argv) < index + 2:
-        sys.stderr.write(argname + ' needs an argument\n')
-        exit(1)
-    return sys.argv[index+1]
-
-imagename = process_command_line_arg('--image', True, 'need an image to convert')
+imagename = process_command_line_arg('--image', True, True, 'need an image to convert')
 
 im = Image.open(imagename)
 w, h = im.size
 
-nodes = []
+opengl_buffer = (GLubyte*(4*w*h*IMAGE_SCALE*IMAGE_SCALE))(0)
 
-# im = image object
-def get_node(x, y, im):
-    w, h = im.size
-    if x < 0 or y < 0 or x >= w or y >= h:
-        return None
-    index = x + y * w
-    return nodes[index]
+# credit - http://stackoverflow.com/a/4122290
+# and http://pyopengl.sourceforge.net/context/tutorials/shadow_2.html
+def save(pathname):
+    global w, h, opengl_buffer
+
+    image = Image.fromstring(mode='RGBA', size=(IMAGE_SCALE*w, IMAGE_SCALE*h), data=opengl_buffer)
+    image = image.transpose(Image.FLIP_TOP_BOTTOM)
+    image.save(pathname)
+
+    return
+
+    fbo = glGenFrameBuffers(1)
+    glBindFrameBuffer(GL_FRAMEBUFFER, fbo)
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
+
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, opengl_buffer)
+    image = Image.fromstring(mode='RGB', size=(w, h), data=opengl_buffer)
+    image = image.transpose(Image.FLIP_TOP_BOTTOM)
+    image.save(pathname)
+
+# declare the buffer that we will need to save the image to disk
+# if the --save command-line arg is passed
+
+nodes = []
 
 # create nodes
 for row in xrange(h):
@@ -249,85 +205,53 @@ for row in xrange(h):
 # initialize similarity graph
 for row in xrange(h):
     for col in xrange(w):
-        n = get_node(col, row, im)
+        n = get_node(col, row, im, nodes)
         for x in [-1,0,1]:
             for y in [-1,0,1]:
                 if x != 0 or y != 0:
-                    neighbour = get_node(col+x, row+y, im)
+                    neighbour = get_node(col+x, row+y, im, nodes)
                     n.make_conn(neighbour)
 
 def test_node_corresponds_to_image(im):
     for x in xrange(col):
         for y in xrange(row):
-            assert get_node(x,y,im).rgb == im.getpixel((x,y))
+            assert get_node(x,y,im, nodes).rgb == im.getpixel((x,y))
 
 def test_neighbours_are_mutual(im):
     for x in xrange(col):
         for y in xrange(row):
-            n = get_node(x,y,im)
+            n = get_node(x,y,im, nodes)
             for ne in n.neighbours:
                 assert n in ne.neighbours
 
 def test_number_of_neighbours_is_correct(im):
     w, h = im.size
     # corner nodes have 3 neighbours
-    assert len(get_node(0,   0,   im).neighbours) == 3
-    assert len(get_node(w-1, 0,   im).neighbours) == 3
-    assert len(get_node(0,   h-1, im).neighbours) == 3
-    assert len(get_node(w-1, h-1, im).neighbours) == 3
+    assert len(get_node(0,   0,   im, nodes).neighbours) == 3
+    assert len(get_node(w-1, 0,   im, nodes).neighbours) == 3
+    assert len(get_node(0,   h-1, im, nodes).neighbours) == 3
+    assert len(get_node(w-1, h-1, im, nodes).neighbours) == 3
     # border nodes have 5 neighbours
     for x in xrange(1, w-1):
-        assert len(get_node(x, 0,   im).neighbours) == 5
-        assert len(get_node(x, h-1, im).neighbours) == 5
+        assert len(get_node(x, 0,   im, nodes).neighbours) == 5
+        assert len(get_node(x, h-1, im, nodes).neighbours) == 5
     for y in xrange(1, h-1):
-        assert len(get_node(0,   y, im).neighbours) == 5
-        assert len(get_node(w-1, y, im).neighbours) == 5
+        assert len(get_node(0,   y, im, nodes).neighbours) == 5
+        assert len(get_node(w-1, y, im, nodes).neighbours) == 5
     # interior nodes have 8 neighbours
     for x in xrange(1, w-1):
         for y in xrange(1, h-1):
-            assert len(get_node(x, y, im).neighbours) == 8
+            assert len(get_node(x, y, im, nodes).neighbours) == 8
 
 if '--tests' in sys.argv:
     test_node_corresponds_to_image(im)
     test_number_of_neighbours_is_correct(im)
     test_neighbours_are_mutual(im)
 
-'''colour comparisons'''
-
-# convert rgb to yuv
-def rgb2yuv(r,g,b):
-    r1 = r / 255.0
-    g1 = g / 255.0
-    b1 = b / 255.0
-    y = (0.299 * r1) + (0.587 * g1) + (0.114 * b1)
-    u = 0.492 * (b1 - y)
-    v = 0.877 * (r1 - y)
-    return (y, u, v)
-
-# compare YUV values of two pixels, return
-# True if they are different, else False
-def pixels_are_dissimilar(rgb1, rgb2):
-    r1, g1, b1 = rgb1
-    r2, g2, b2 = rgb2
-    y1, u1, v1 = rgb2yuv(r1, g1, b1)
-    y2, u2, v2 = rgb2yuv(r2, g2, b2)
-    ydiff = abs(y1 - y2) > 48.0/255
-    udiff = abs(u1 - u2) > 7.0/255
-    vdiff = abs(v1 - v2) > 6.0/255
-    return ydiff or udiff or vdiff
-
-def shading_edge(rgb1, rgb2):
-    y1, u1, v1 = rgb2yuv(*rgb1)
-    y2, u2, v2 = rgb2yuv(*rgb2)
-    dist = (y1 - y2)**2 +(u1 - u2)**2 + (v1 - v2)**2
-    return (dist <= (float(100)/255)**2)
-
-'''comparisons over'''
-
 # remove dissimilar edges by yuv metric
 for x in xrange(w):
     for y in xrange(h):
-        n = get_node(x, y, im)
+        n = get_node(x, y, im, nodes)
         neighbours_to_remove = [ne for ne in n.neighbours if pixels_are_dissimilar(n.rgb, ne.rgb)]
         for ne in neighbours_to_remove:
             n.remove_conn(ne)
@@ -366,7 +290,7 @@ def half_curve_len(node1, node2):
             current = neighb2
         else:
             current = neighb1
-        previous = get_node(old_current_x, old_current_y, im)
+        previous = get_node(old_current_x, old_current_y, im, nodes)
         result += 1
         if current not in encountered:
             encountered.add(current)
@@ -403,10 +327,10 @@ def dfs_connected_component_size(node, max_x, min_x, max_y, min_y):
 # apply heuristics to make graph planar
 for x in xrange(w-1):
     for y in xrange(h-1):
-        n = get_node(x, y, im)
-        right = get_node(x+1, y, im) # node to the right of the curr node
-        down = get_node(x, y+1, im) # node directly below the curr node
-        rightdown = get_node(x+1, y+1, im) # node directly below and to the right of the curr node
+        n = get_node(x, y, im, nodes)
+        right = get_node(x+1, y, im, nodes) # node to the right of the curr node
+        down = get_node(x, y+1, im, nodes) # node directly below the curr node
+        rightdown = get_node(x+1, y+1, im, nodes) # node directly below and to the right of the curr node
 
         # edges
         self_to_right = right in n.neighbours
@@ -473,10 +397,10 @@ for x in xrange(w-1):
 def test_graph_is_planar(im, nodes):
     for x in xrange(w-1):
         for y in xrange(h-1):
-            n = get_node(x, y, im)
-            right = get_node(x+1, y, im)
-            down = get_node(x, y+1, im)
-            rightdown = get_node(x+1, y+1, im)
+            n = get_node(x, y, im, nodes)
+            right = get_node(x+1, y, im, nodes)
+            down = get_node(x, y+1, im, nodes)
+            rightdown = get_node(x+1, y+1, im, nodes)
             # if n in rightdown.neighbours and right in down.neighbours:
             #     print n.get_xy()
 
@@ -485,7 +409,7 @@ if '--tests' in sys.argv:
 
 def find_all_voronoi_points(x, y, im):
     # x, y = 0, 0 is the topleft pixel
-    n = get_node(x, y, im)
+    n = get_node(x, y, im, nodes)
 
     x_center = x + 0.5
     y_center = y + 0.5
@@ -493,28 +417,28 @@ def find_all_voronoi_points(x, y, im):
     # for each of the eight directions, decide
     # where to put points, if at all
     # first, the up, down, left, right edges
-    up = get_node(x, y-1, im)
+    up = get_node(x, y-1, im, nodes)
     if up is not None:
         if up not in n.neighbours:
             n.vor_pts.append((x_center, y_center - 0.25))
     else:
         n.vor_pts.append((x_center, y_center - 0.5))
 
-    dn = get_node(x, y+1, im)
+    dn = get_node(x, y+1, im, nodes)
     if dn is not None:
         if dn not in n.neighbours:
             n.vor_pts.append((x_center, y_center + 0.25))
     else:
         n.vor_pts.append((x_center, y_center + 0.5))
 
-    lt = get_node(x-1, y, im)
+    lt = get_node(x-1, y, im, nodes)
     if lt is not None:
         if lt not in n.neighbours:
             n.vor_pts.append((x_center - 0.25, y_center))
     else:
         n.vor_pts.append((x_center - 0.5, y_center))
 
-    rt = get_node(x+1, y, im)
+    rt = get_node(x+1, y, im, nodes)
     if rt is not None:
         if rt not in n.neighbours:
             n.vor_pts.append((x_center + 0.25, y_center))
@@ -527,7 +451,7 @@ def find_all_voronoi_points(x, y, im):
     lt_in_neighbours = lt is not None and lt in n.neighbours
     rt_in_neighbours = rt is not None and rt in n.neighbours
 
-    uplt = get_node(x-1, y-1, im)
+    uplt = get_node(x-1, y-1, im, nodes)
     if uplt is not None:
         if uplt in n.neighbours:
             n.vor_pts.append((x_center - 0.75, y_center - 0.25))
@@ -543,7 +467,7 @@ def find_all_voronoi_points(x, y, im):
     else:
         n.vor_pts.append((x_center - 0.5, y_center - 0.5))
 
-    dnlt = get_node(x-1, y+1, im)
+    dnlt = get_node(x-1, y+1, im, nodes)
     if dnlt is not None:
         if dnlt in n.neighbours:
             n.vor_pts.append((x_center - 0.75, y_center + 0.25))
@@ -559,7 +483,7 @@ def find_all_voronoi_points(x, y, im):
     else:
         n.vor_pts.append((x_center - 0.5, y_center + 0.5))
 
-    uprt = get_node(x+1, y-1, im)
+    uprt = get_node(x+1, y-1, im, nodes)
     if uprt is not None:
         if uprt in n.neighbours:
             n.vor_pts.append((x_center + 0.75, y_center - 0.25))
@@ -575,7 +499,7 @@ def find_all_voronoi_points(x, y, im):
     else:
         n.vor_pts.append((x_center + 0.5, y_center - 0.5))
 
-    dnrt = get_node(x+1, y+1, im)
+    dnrt = get_node(x+1, y+1, im, nodes)
     if dnrt is not None:
         if dnrt in n.neighbours:
             n.vor_pts.append((x_center + 0.75, y_center + 0.25))
@@ -678,7 +602,7 @@ def populate_neighbours(n):
 for x in xrange(w):
     for y in xrange(h):
         find_all_voronoi_points(x, y, im)
-        n = get_node(x, y, im)
+        n = get_node(x, y, im, nodes)
         n.vor_pts = convex_hull(n.vor_pts)
         # populate the points dict
         for xx, yy in n.vor_pts:
@@ -694,7 +618,7 @@ for x in xrange(w):
 # remove all useless points
 for x in xrange(w):
     for y in xrange(h):
-        n = get_node(x, y, im)
+        n = get_node(x, y, im, nodes)
         useless_pts = find_useless_pts(n)
         n.vor_pts = filter(lambda p: p not in useless_pts, n.vor_pts)
         # also update the global points dict
@@ -703,26 +627,6 @@ for x in xrange(w):
             for ne in points[p].neighbours[n]:
                 ne.neighbours[n].remove(points[p])
             del points[p]
-
-# pt1 and pt2 are two polygon vertices in the simplified voronoi
-# diagram this function checks if the reshaped pixels corresponding
-# to the two polygons on either side of the edge joining pt1 to pt2
-# are different enough for the edge to be classified as visible
-def polygons_are_dissimilar(pt1, pt2):
-    # get the pixels associated with both points and take the intersection of the two sets
-    # this either has size 2 or size 1
-    # the second case happens when the two polygon points are on the boundary
-    # in this case, the edge is trivially not a visible edge since there is no
-    # need to draw b-splines along the boundary
-    # note that here, by "visible edge" we mean a single-length visible edge
-    # whereas elsewhere, we use it to mean "a sequence of nodes separating 2 regions"
-    intersection = pt1.nodes & pt2.nodes
-    if len(intersection) == 1:
-        return True
-    else:
-        assert len(intersection) == 2
-        node1, node2 = intersection
-        return pixels_are_dissimilar(node1.rgb, node2.rgb)
 
 def test_point_positions():
     global points, imagename
@@ -734,7 +638,7 @@ def test_point_neighbours():
     global points, imagename
     if imagename == 'img/smw_boo.png':
         assert (5.75, 0.75) in points
-        # assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours[get_node(5,1,im)] }
+        # assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours[get_node(, nodes5,1,im)] }
 
 # TODO
 def test_polygons_are_dissimilar():
@@ -841,15 +745,6 @@ def find_all_visible_edges(p):
 
     return result
 
-# returns true if points a b and c are collinear
-def is_straight_line(p1, p2, p3):
-    a, b, c = p1.get_xy(), p2.get_xy(), p3.get_xy()
-    if a[1] == b[1]: return b[1] == c[1]
-    if c[1] == b[1]: return b[1] == a[1]
-    slope1 = float(a[0]-b[0]) / float(a[1]-b[1])
-    slope2 = float(c[0]-b[0]) / float(c[1]-b[1])
-    return slope1 == slope2
-
 # (p1, p2) is the first edge of the visible
 # edge with p1 as an endpoint. Examples:
 # 1 - 2 - 3 yields the list [1,2,3]
@@ -925,12 +820,6 @@ def merge_vedges(p, edge1, edge2, m):
         print p, "merging by", m, "::", initial, ">", len(vedges)
         point_list.append(p)
 
-def angle(o, a, b):
-    def d(l, m): return (l.x - m.x)**2 + (l.y - m.y)**2
-    P12, P23, P13 = d(o, a), d(a, b), d(o, b)
-    angle = math.acos((P12 + P13 - P23) / (2 * math.sqrt(P12 * P13)))
-    return math.degrees(angle) # converted from radians
-
 def resolve_juction(p):
     global vedges, count
 
@@ -968,14 +857,6 @@ def resolve_juction(p):
             merge_vedges(p, v3, v1, "closest angle")
         # else: # exclusive conditions?
             # print "#debug: couldn't merge ANY edges\n"
-
-def is_contour_edge(pt1, pt2):
-    intersection = pt1.nodes & pt2.nodes
-    if len(intersection) == 1:
-        return True
-    else:
-        node1, node2 = intersection
-        return not shading_edge(node1.rgb, node2.rgb)
 
 for p in points.values():
     if len(p.vedges) > 3:
@@ -1030,16 +911,6 @@ from numpy import array, linspace
 import matplotlib.pyplot as plt
 import scipy.interpolate as si
 
-# p = points[(5,13)]
-# point_list = []
-# # point_list = [p]
-# for v in p.vedges:
-#     second = v[1] if p == v[0] else v[-2]
-#     end = v[-1] if p == v[0] else v[0]
-#     print 'second', second, 'end', end
-#     point_list.append(second)
-#     point_list.append(end)
-
 # credit - this code is a modified version of http://stackoverflow.com/a/24693358
 DEGREE, SMOOTHNESS = 3, 500
 for v in vedges:
@@ -1080,14 +951,21 @@ for v in vedges:
 
     v.bspline = zip(x_i, y_i)
 
-for p in points.values():
-    if len(p.vedges) == 3:
-        point_list.append(p)
-        for v in p.vedges:
-            point_list.append(v[1])
-            print v[1],
-        print
+# for p in points.values():
+#     if len(p.vedges) == 3:
+#         point_list.append(p)
+#         for v in p.vedges:
+#             point_list.append(v[1])
+#             print v[1],
+#         print
 
 render_stage = process_command_line_arg('--render')
 if render_stage is not None:
     render(render_stage)
+
+save_image = process_command_line_arg('--save', False)
+if save_image is not None:
+    if render_stage is not None:
+        save(save_image)
+    else:
+        sys.stderr.write('cannot save image, nothing has been rendered\n')
