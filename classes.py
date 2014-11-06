@@ -76,3 +76,6 @@ class VisibleEdge(object):
 
     def get_endpoints(self):
         return (self.points[0], self.points[-1])
+
+    def __getitem__(self, key):
+        return self.points[key]

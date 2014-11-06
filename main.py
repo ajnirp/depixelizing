@@ -720,8 +720,8 @@ def polygons_are_dissimilar(pt1, pt2):
     if len(intersection) == 1:
         return True
     else:
-        node1, node2 = intersection
         assert len(intersection) == 2
+        node1, node2 = intersection
         return pixels_are_dissimilar(node1.rgb, node2.rgb)
 
 def test_point_positions():
@@ -819,10 +819,10 @@ def find_all_visible_edges(p):
                     to_remove.add(i)
     # perform the removal
     visible_edges = [v for i,v in enumerate(visible_edges) if i not in to_remove]
-
+    
     # if we only have two visible edge sequences, they are actually
     # two disjoint parts of one single visible edge sequence. so, we merge them
-    if len(visible_edges) == 2:
+    if len(visible_edges) == 2 and len(p.vedges) == 0: # partial fix
         visible_edge1, visible_edge2 = visible_edges[0], visible_edges[1]
 
         # we need to check if either of the two sequences is a cycle
@@ -864,9 +864,6 @@ def find_visible_edge(p1, p2):
     while True:
         slve_neighbours = filter(lambda x: polygons_are_dissimilar(x, curr), curr.all_neighbours())
         slve_neighbours = keep_closest_collinear_neighbours(curr, slve_neighbours)
-
-        # if points[(14.25,3.25)] in result:
-        #     print curr, slve_neighbours
 
         if len(slve_neighbours) != 2:
             result.append(curr)
@@ -940,9 +937,23 @@ def resolve_juction(p):
     assert len(p.vedges) == 3
     v1, v2, v3 = p.vedges
 
-    ne1 = v1.points[1] if v1.points[0] == p else v1.points[-2]
-    ne2 = v2.points[1] if v2.points[0] == p else v2.points[-2]
-    ne3 = v3.points[1] if v3.points[0] == p else v3.points[-2]
+    def corner(p, vedge):
+        return True if p == vedge[0] or p == vedge[1] else False
+
+    # if not(corner(p, v1) and corner(p, v2) and corner(p, v3)):
+    #     # print "bugfix pending; workaround in play"
+    #     point_list.append(p)
+    #     return
+
+    ne1 = v1[1] if v1[0] == p else v1[-2]
+    ne2 = v2[1] if v2[0] == p else v2[-2]
+    ne3 = v3[1] if v3[0] == p else v3[-2]
+
+    # print 'junction', p, ne1, ne2, ne3
+
+    if p == ne1 or p == ne2 or p == ne3:
+        return
+
     e1, e2, e3 = map(lambda ne: is_contour_edge(p, ne), [ne1, ne2, ne3])
 
     if e1 and e2 and not e3:
@@ -962,22 +973,23 @@ def resolve_juction(p):
         elif a3 > a1 and a3 > a2:
             # point_list.append(ne2)
             merge_vedges(p, v3, v1, "closest angle")
-        else: # Exclusive conditions??
-            print "#debug: couldn't merge ANY edges\n"
+        # else: # exclusive conditions?
+            # print "#debug: couldn't merge ANY edges\n"
 
 def is_contour_edge(pt1, pt2):
+    #
     intersection = pt1.nodes & pt2.nodes
-    print 'len intersection', len(intersection)
     if len(intersection) == 1:
         return True
     else:
+        ## if len(intersection) != 2: return False
         node1, node2 = intersection
-        assert len(intersection) == 2
         return not shading_edge(node1.rgb, node2.rgb)
 
 for p in points.values():
     if len(p.vedges) > 3:
-        print "unlikely case:", p, len(p.vedges)
+        # print "unlikely case:", p, len(p.vedges)
+        pass
     if len(p.vedges) == 3:
         # point_list.append(p)
         resolve_juction(p)
@@ -1027,27 +1039,31 @@ from numpy import array, linspace
 import matplotlib.pyplot as plt
 import scipy.interpolate as si
 
-point_list = []
+# p = points[(5,13)]
+# point_list = []
+# # point_list = [p]
+# for v in p.vedges:
+#     second = v[1] if p == v[0] else v[-2]
+#     end = v[-1] if p == v[0] else v[0]
+#     print 'second', second, 'end', end
+#     point_list.append(second)
+#     point_list.append(end)
 
 # credit - http://stackoverflow.com/questions/24612626/b-spline-interpolation-with-python
-DEGREE, SMOOTHNESS = 3, 500
+DEGREE, SMOOTHNESS = 3, 150
 for v in vedges:
-# for v in points[(2.75,8.25)].vedges:
     pts = [p.get_xy() for p in v.points]
-    print pts
     degree = DEGREE
 
     # cycle check
     periodic = False
-    is_cycle = False
     if pts[0] == pts[-1]:
-        is_cycle = True
-        # pts.pop()
+        pts.pop()
         periodic = True
+        # pts = pts[1:-1]
 
-    # this works, somehow
-    pts = [pts[0]] + pts + [pts[-1],pts[-1]]
-    # not sure why, but it works ¯\_(ツ)_/¯
+    if periodic: pts = pts + pts[0 : degree+1]
+    else: pts = [pts[0]] + pts + [pts[-1],pts[-1]]
 
     pts = array(pts)
     n_points = len(pts)
@@ -1063,6 +1079,10 @@ for v in vedges:
 
     y_list = list(y_tup)
     yl = y.tolist()
+
+    if periodic:
+        x_list[1] = [0.0] + xl + [0.0, 0.0, 0.0, 0.0]
+        y_list[1] = [0.0] + yl + [0.0, 0.0, 0.0, 0.0]
 
     x_i = si.splev(ipl_t, x_list)
     y_i = si.splev(ipl_t, y_list)
