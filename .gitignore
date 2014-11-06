@@ -1,4 +1,5 @@
 dep_old/
+img_manual/
 .DS_Store
 *.c
 *.o
@@ -7,3 +8,4 @@ a.out
 *.pyc
 curvey-master/
 *.bak
+bsplines2.py

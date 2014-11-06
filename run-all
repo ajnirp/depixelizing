@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+Dir.glob('img/*.png') do |image|
+	puts image
+	`python main.py --tests --render bsplines --image #{image}`
+end

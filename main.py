@@ -940,19 +940,12 @@ def resolve_juction(p):
     def corner(p, vedge):
         return True if p == vedge[0] or p == vedge[1] else False
 
-    # if not(corner(p, v1) and corner(p, v2) and corner(p, v3)):
-    #     # print "bugfix pending; workaround in play"
-    #     point_list.append(p)
-    #     return
-
     ne1 = v1[1] if v1[0] == p else v1[-2]
     ne2 = v2[1] if v2[0] == p else v2[-2]
     ne3 = v3[1] if v3[0] == p else v3[-2]
 
-    # print 'junction', p, ne1, ne2, ne3
-
-    if p == ne1 or p == ne2 or p == ne3:
-        return
+    # if p == ne1 or p == ne2 or p == ne3:
+    #     return
 
     e1, e2, e3 = map(lambda ne: is_contour_edge(p, ne), [ne1, ne2, ne3])
 
@@ -977,12 +970,10 @@ def resolve_juction(p):
             # print "#debug: couldn't merge ANY edges\n"
 
 def is_contour_edge(pt1, pt2):
-    #
     intersection = pt1.nodes & pt2.nodes
     if len(intersection) == 1:
         return True
     else:
-        ## if len(intersection) != 2: return False
         node1, node2 = intersection
         return not shading_edge(node1.rgb, node2.rgb)
 
@@ -1049,8 +1040,8 @@ import scipy.interpolate as si
 #     point_list.append(second)
 #     point_list.append(end)
 
-# credit - http://stackoverflow.com/questions/24612626/b-spline-interpolation-with-python
-DEGREE, SMOOTHNESS = 3, 150
+# credit - this code is a modified version of http://stackoverflow.com/a/24693358
+DEGREE, SMOOTHNESS = 3, 500
 for v in vedges:
     pts = [p.get_xy() for p in v.points]
     degree = DEGREE
@@ -1058,9 +1049,9 @@ for v in vedges:
     # cycle check
     periodic = False
     if pts[0] == pts[-1]:
-        pts.pop()
+        # pts.pop()
         periodic = True
-        # pts = pts[1:-1]
+        pts = pts[:-1]
 
     if periodic: pts = pts + pts[0 : degree+1]
     else: pts = [pts[0]] + pts + [pts[-1],pts[-1]]
@@ -1088,6 +1079,14 @@ for v in vedges:
     y_i = si.splev(ipl_t, y_list)
 
     v.bspline = zip(x_i, y_i)
+
+for p in points.values():
+    if len(p.vedges) == 3:
+        point_list.append(p)
+        for v in p.vedges:
+            point_list.append(v[1])
+            print v[1],
+        print
 
 render_stage = process_command_line_arg('--render')
 if render_stage is not None:
