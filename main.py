@@ -1020,55 +1020,51 @@ if '--tests' in sys.argv:
 # for v in vedges:
 #     v.bspline = bspline_eval(v.points)
 
-import numpy as np
+from numpy import array, linspace
 import matplotlib.pyplot as plt
 import scipy.interpolate as si
 
 point_list = []
 
 # credit - http://stackoverflow.com/questions/24612626/b-spline-interpolation-with-python
-DEGREE, SMOOTHNESS = 3, 150
+DEGREE, SMOOTHNESS = 3, 500
 for v in vedges:
-# for v in points[(16,5)].vedges:
+# for v in points[(2.75,8.25)].vedges:
     pts = [p.get_xy() for p in v.points]
+    print pts
     degree = DEGREE
 
     # cycle check
     periodic = False
+    is_cycle = False
     if pts[0] == pts[-1]:
-        pts.pop()
+        is_cycle = True
+        # pts.pop()
         periodic = True
 
-    point_list += [points[pts[0]], points[pts[-1]]]
+    # this works, somehow
+    pts = [pts[0]] + pts + [pts[-1],pts[-1]]
+    # not sure why, but it works ¯\_(ツ)_/¯
 
-    pts = pts + pts[0:degree + 1]
-    # print pts
-
-    pts = np.array(pts)
+    pts = array(pts)
     n_points = len(pts)
     x, y = pts[:,0], pts[:,1]
 
     t = range(len(x))
-    ipl_t = np.linspace(1.0, len(pts) - degree, SMOOTHNESS)
+    ipl_t = linspace(1.0, len(pts) - degree, SMOOTHNESS)
 
     x_tup = si.splrep(t, x, k=degree, per=periodic)
     y_tup = si.splrep(t, y, k=degree, per=periodic)
     x_list = list(x_tup)
     xl = x.tolist()
-    # x_list[1] = [0.0] + xl + [0.0, 0.0, 0.0, 0.0]
 
     y_list = list(y_tup)
     yl = y.tolist()
-    # y_list[1] = [0.0] + yl + [0.0, 0.0, 0.0, 0.0]
 
-    # x_i = si.splev(ipl_t, x_list)
-    # y_i = si.splev(ipl_t, y_list)
-    x_i = si.splev(ipl_t, x_tup)
-    y_i = si.splev(ipl_t, y_tup)
+    x_i = si.splev(ipl_t, x_list)
+    y_i = si.splev(ipl_t, y_list)
 
     v.bspline = zip(x_i, y_i)
-
-# assert len(vedges) * 2 == len(point_list)
 
 render_stage = process_command_line_arg('--render')
 if render_stage is not None:
