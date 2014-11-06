@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # usage: python main.py
 # e.g. python main.py
 # to enable inline tests, python main.py --tests
@@ -965,6 +967,7 @@ def resolve_juction(p):
 
 def is_contour_edge(pt1, pt2):
     intersection = pt1.nodes & pt2.nodes
+    print 'len intersection', len(intersection)
     if len(intersection) == 1:
         return True
     else:
