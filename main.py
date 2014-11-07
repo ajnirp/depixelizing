@@ -6,7 +6,7 @@
 import sys
 
 from classes import *
-from hull import *
+# from hull import *
 from helpers import *
 
 if sys.platform == "darwin":
@@ -14,9 +14,11 @@ if sys.platform == "darwin":
 else:
     import Image
 
-IMAGE_SCALE = int(process_command_line_arg('--scale', necessary=False, needs_arg=True))
+IMAGE_SCALE = process_command_line_arg('--scale', necessary=False, needs_arg=True)
 if IMAGE_SCALE is None:
     IMAGE_SCALE = 24
+else:
+    IMAGE_SCALE = int(IMAGE_SCALE)
 
 '''rendering code'''
 
@@ -44,6 +46,7 @@ def display_original():
             glEnd()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
+    glutLeaveMainLoop()
 
 def display_voronoi():
     global im, opengl_buffer, nodes
@@ -68,6 +71,7 @@ def display_voronoi():
     display_point_list()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
+    glutLeaveMainLoop()
 
 def display_visible_edges():
     global im, vedges, opengl_buffer, nodes
@@ -85,6 +89,7 @@ def display_visible_edges():
     display_point_list()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
+    glutLeaveMainLoop()
 
 def display_point_list():
     global point_list
@@ -113,6 +118,7 @@ def display_similarity():
     glEnd()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
+    glutLeaveMainLoop()
 
 def display_bsplines():
     global im, vedges
@@ -131,17 +137,20 @@ def display_bsplines():
     display_point_list()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
     glFlush()
+    glutLeaveMainLoop()
 
 def display_optimized():
     pass
 
 def render(render_stage):
     global window_id, im, imagename
+    print render_stage
     w, h = im.size
     glutInit()
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS)
     glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
     window_id = glutCreateWindow(render_stage + ' - '  + imagename)
+    glutHideWindow()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA)
     if render_stage == 'original':
         glutDisplayFunc(display_original)
@@ -640,7 +649,6 @@ def test_point_neighbours():
         assert (5.75, 0.75) in points
         # assert { (6,0), (5,1), (6.25,1.25) } == { pt.get_xy() for pt in points[(5.75, 0.75)].neighbours[get_node(, nodes5,1,im)] }
 
-# TODO
 def test_polygons_are_dissimilar():
     global points, imagename
     if imagename == 'img/smw_boo.png':
@@ -652,6 +660,10 @@ if '--tests' in sys.argv:
     test_point_positions()
     test_point_neighbours()
     test_polygons_are_dissimilar()
+
+render('voronoi')
+save(process_command_line_arg('--save', False))
+exit(0)
 
 # global "list" of visible edge sequences
 vedges = set()
@@ -959,9 +971,9 @@ for v in vedges:
 #             print v[1],
 #         print
 
-render_stage = process_command_line_arg('--render')
-if render_stage is not None:
-    render(render_stage)
+# render_stage = process_command_line_arg('--render')
+# if render_stage is not None:
+#     render(render_stage)
 
 save_image = process_command_line_arg('--save', False)
 if save_image is not None:

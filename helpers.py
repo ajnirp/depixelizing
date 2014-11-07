@@ -130,7 +130,7 @@ def polygons_are_dissimilar(pt1, pt2):
         return pixels_are_dissimilar(node1.rgb, node2.rgb)
 
 def process_command_line_arg(argname, necessary=False, needs_arg=True, missing_error=''):
-    print argname, needs_arg
+    # print argname, needs_arg
     if argname not in sys.argv:
         if necessary:
             sys.stderr.write(missing_error + '\n')
