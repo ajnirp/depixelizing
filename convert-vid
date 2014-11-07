@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
-# `avconv -i vid/mario.mp4 -r 30 vid/extracted/still_%04d.png`
-Dir.glob('vid/extracted/*.png') do |image_name|
-	output_name = image_name.gsub('extracted/', 'voronoi/')
+# `avconv -i vid/4x.mp4 -r 30 vid/extracted/still_%04d.png`
+Dir.glob('vid/resized/*.png') do |image_name|
+	output_name = image_name.gsub('resized/', 'voronoi/')
 	puts "Saving #{output_name}"
-	`python main.py --image #{image_name} --render voronoi --save #{output_name}`
+	`python main.py --render voronoi --image #{image_name} --save #{output_name} --scale 4`
 end

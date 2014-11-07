@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+`javac ScaleDown.java`
+Dir.glob('vid/extracted/*.png') do |image_name|
+	output_name = image_name.gsub('extracted/', 'resized/')
+	puts "Resizing #{image_name} to #{output_name}"
+	`java ScaleDown #{image_name} 4 #{output_name}`
+end
