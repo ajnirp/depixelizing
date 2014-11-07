@@ -1,0 +1,148 @@
+\documentclass[a4paper,9pt]{article}
+
+\usepackage[margin=0.95in]{geometry}
+\usepackage{inconsolata}
+\usepackage[normalem]{ulem}
+% \usepackage{fontspec}
+\usepackage{charter}
+% \setromanfont{Times New Roman}
+\usepackage[hidelinks,backref]{hyperref} % clickable links and citations with no green borders
+\usepackage{amsmath}
+\usepackage{listings} % add source code snippets
+\usepackage{csquotes} % block quotes
+\usepackage{color} % it's a must these days / for the colors are fading
+\usepackage[dvips]{graphicx}
+\DeclareGraphicsExtensions{.png,.jpg}
+\setlength{\parindent}{0pt}
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mydarkgray}{rgb}{0.4,0.4,0.4}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\definecolor{myrust}{rgb}{0.77,0,0}
+\pagestyle{empty}
+
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+  basicstyle=\footnotesize\ttfamily,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whiterspace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  language=C++,                    % the language of the code
+  morekeywords={*,...},            % if you want to add more keywords to the set
+  numbers=none,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  % title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=red,
+  urlcolor=blue,
+  citecolor=green,
+  linktoc=page
+}
+
+\author{
+  Kandarp Khandwala\\
+  110050005
+  \and
+  Rohan Prinja\\
+  110050011
+}
+\title{Project Report}
+
+\begin{document}
+
+% \vspace*{4.6cm}
+
+\maketitle
+
+% \textcolor{myrust}{\Huge{\centerline{Project Proposal}}}
+% \textcolor{myrust}{\Large{\centerline{CS663}}}
+% \vspace{16pt}
+
+\textcolor{myrust}{\section{About this document}}
+
+In this document we summarise the results of our project. Our project was to implement Kopf and Lischinski's 2011 SIGGRAPH paper \href{http://research.microsoft.com/en-us/um/people/kopf/pixelart/}{Depixelizing Pixel Art}. The paper proposes a multi-stage procedure for converting pixel art to vector images. We have implemented all stages of this procedure except for the b-spline optimization step. We are getting a slower running time than the paper, and our output matches it almost perfectly.
+
+\textcolor{myrust}{\section{About the paper}}
+
+\textcolor{myrust}{\subsection{What is pixel art?}}
+
+Pixel art is the name given to a style of art that was popular in older game consoles of the 80s and 90s. It can be summed up as ``very-low-resolution raster art" The distinguishing feature of pixel art is that each pixel is placed by hand, by a skilled artist. This is in contrast to other forms of digital art, where pixel-level granularity is not common.\\
+
+The features of pixel art which made it suitable for such devices were its low memory usage and ability to convey a lot of information through the use of very few pixels. Character sprites in games built for these consoles were typically 10-80 pixels tall and 10-40 pixels wide. Even at such a small size, the art looked very good.\\
+
+\centerline{\includegraphics[scale=4]{../../img/smw_bowser}}
+
+The figure above is a sprite from Super Mario World, scaled 4x. Its actual size is 49 by 39 pixels.
+
+\textcolor{myrust}{\subsection{Contributions of the paper}}
+
+The paper proposes a method to obtain a vector representation of a given pixel art image. The biggest advantage of using a vector representation, (apart from preferring vector art for aesthetic reasons) is that vector representations are scale-independent. This is useful, because usually in a game using pixel art, the sprites and textures are scaled (almost always using nearest-neighbour interpolation) to 2x, 3x or 4x. With a vector representation, we can use arbitrary scales, like 2.5x, whereas nearest-neighbour tends to distort images when the scale value is not an integer.
+
+\textcolor{myrust}{\subsection{Competing algorithms}}
+
+There are two categories of algorithms that compete with the algorithm presented in this paper - pixel art upscaling algorithms, and raster-to-vector conversion algorithms.\\
+
+There already exist algorithms to intelligently upscale pixel art sprites and textures (as opposed to nearest-neighbour, which results in very blocky upscaled images), such as \textbf{hqx}, which comes in three variants depending on the scale - \textbf{hq2x}, \textbf{hq3x} and \textbf{hq4x}. The output obtained by Kopf and Lischinski is superior to that of hqx, which anyway only has three variants.\\
+
+Many raster-to-vector converters also exist. However, a quick look at the paper's \href{http://research.microsoft.com/en-us/um/people/kopf/pixelart/supplementary/multi_comparison.html}{results} page makes it clear that only the pixel art upscalers are a good contender to the paper's algorithm. Raster-to-vector converters achieve pretty terrible results on the vast majority of the input images, which is perhaps to be expected since these algorithms were not designed with very-low-resolution input images in mind. With pixel art upscaling, the challenge is really due to the minimalist nature of the art. For example, in pixel art, it is not uncommon to represent a character's eye by a single pixel!
+
+\textcolor{myrust}{\section{Outline of the algorithm}}
+
+The algorithm proceeds in three stages, each stage gradually approaching the final result.
+
+In the first stage, we view the square pixels of the image as a tiling of the image. We then reshape these pixels into polygons using a simplification of a modified Voronoi diagram. This is basically a re-tiling of the image. By doing this, we hope to approximate visual features of the image via appropriate polygons. This is the Voronoi stage.
+
+In the second stage, we identify edge sequences within the Voronoi and, using them as control polygons, fit quadratic b-splines. (In our implementation, we use cubic b-splines). This smoothens some of the blocky features of the Voronoi diagram. At the end of this stage, every visible edge has been fitted with a b-spline.
+
+In the third stage, we optimize the b-splines to reduce staircasing artifacts. This step can lead to over-smoothing, so the authors correct that by using corner detection to avoid optimizing certain patterns of control points.
+
+Finally, the b-splines are rendered by discretely sampling the curve, and vector-rendering techniques (not explained fully in the paper) are used to render the final image. Since b-splines are continuous curves, they are resolution-independent, which makes them a good vector representation. The only thing that changes while rendering at higher resolutions is the frequency with which we sample each spline.
+
+\textcolor{myrust}{\section{What we have implemented}}
+
+% We have implemented all stages of the paper except the optimization. We have written rendering code
+
+%%%%%%%%%%%%%%%%%%%%%%5
+
+The authors of the paper have demonstrated their algorithm on around 54 inputs on \href{http://research.microsoft.com/en-us/um/people/kopf/pixelart/supplementary/comparison\_bicubic.html}{this page}. We shall use these images as our dataset.
+
+\textcolor{myrust}{\section{Validation strategy}}
+
+To evaluate any pixel art scaling algorithm we must use visual inspection, since the aim of the paper is to present an algorithm that creates aesthetic and good-looking vector art from pixel art. Some factors to consider while visually inspecting two vector art outputs are as follows:\\
+
+\begin{enumerate}
+  \itemsep-0.25em
+  \item An image with less jagged edges and less blockiness is better. For example, the image on the left is better:\\
+  \item An image which is not overly smoothed is better. For example, the image on the right is better:\\
+  \item An image which does not have ``incorrect islands" is better. An ``incorrect island" is when an output vector art image contains a small section cut-off from a larger body even though the intention of the pixel artist was to have a single continguous body. For example, the image on the left is better:\\
+\end{enumerate}
+
+We can sum up the above heuristics by saying that in general, our overall aim is to see how close the vector output is to the intention of the pixel artist. The closer it is, the better the vector output.
+
+\textcolor{myrust}{\section{Deliverables}}
+
+After we implement the algorithm as described in the paper, we will tune the parameters of the algorithm so as to obtain outputs better than hq4x on most or all of the input images. We do not expect to surpass the output of the paper itself, however, we will try to decrease the running time.
+
+\end{document}
+
+%% fronto parallel only lel
+%% emulators
+%% cpp or rust

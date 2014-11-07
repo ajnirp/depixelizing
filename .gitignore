@@ -4,9 +4,13 @@ img_manual/
 *.c
 *.o
 *.so
-a.out
 *.pyc
 curvey-master/
 *.bak
 vid/
 *.class
+*.log
+*.aux
+*.out
+tex/proposal/proposal.pdf
+tex/report/report.pdf

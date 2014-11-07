@@ -46,9 +46,6 @@ class Point(object):
         # this maps an owner node to the set of neighbours the
         # point has with respect to that node
         self.neighbours = {}
-        # is the point an endpoint belonging to several vedges?
-        # or is it just a point in the middle of a vedge
-        self.is_endpoint = False
 
     def add_node(self, n):
         self.nodes.append(n)
