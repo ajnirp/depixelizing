@@ -6,7 +6,7 @@
 import sys
 
 from classes import *
-# from hull import *
+from bsplines import *
 from helpers import *
 
 if sys.platform == "darwin":
@@ -14,11 +14,8 @@ if sys.platform == "darwin":
 else:
     import Image
 
-IMAGE_SCALE = process_command_line_arg('--scale', necessary=False, needs_arg=True)
-if IMAGE_SCALE is None:
-    IMAGE_SCALE = 24
-else:
-    IMAGE_SCALE = int(IMAGE_SCALE)
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
 
 '''rendering code'''
 
@@ -45,8 +42,9 @@ def display_original():
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*(y+1))
             glEnd()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
-    glFlush()
-    # glutLeaveMainLoop()
+    # glFlush()
+    glutSwapBuffers()
+    glutLeaveMainLoop()
 
 def display_voronoi():
     global im, opengl_buffer, nodes
@@ -70,8 +68,9 @@ def display_voronoi():
         draw_pixel_centres(w, h, im, nodes, IMAGE_SCALE)
     display_point_list()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
-    glFlush()
-    # glutLeaveMainLoop()
+    # glFlush()
+    glutSwapBuffers()
+    glutLeaveMainLoop()
 
 def display_visible_edges():
     global im, vedges, opengl_buffer, nodes
@@ -88,8 +87,9 @@ def display_visible_edges():
         draw_pixel_centres(w, h, im, nodes, IMAGE_SCALE)
     display_point_list()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
-    glFlush()
-    # glutLeaveMainLoop()
+    # glFlush()
+    glutSwapBuffers()
+    glutLeaveMainLoop()
 
 def display_point_list():
     global point_list
@@ -117,41 +117,41 @@ def display_similarity():
                 glVertex2f(IMAGE_SCALE*(nex+0.5), IMAGE_SCALE*(ney+0.5))
     glEnd()
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
-    glFlush()
-    # glutLeaveMainLoop()
+    # glFlush()
+    glutSwapBuffers()
+    glutLeaveMainLoop()
 
 def display_bsplines():
-    global im, vedges
+    global im, vedges, nodes
     w, h = im.size
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glColor3ub(0, 0, 0)
     for v in vedges:
-        # if v.bspline is None:
-        #     continue
-        set_random_color()
+        # set_random_color()
         glBegin(GL_LINE_STRIP)
         for x,y in v.bspline:
             y = h-y
             glVertex2f(IMAGE_SCALE*x, IMAGE_SCALE*y)
         glEnd()
     display_point_list()
+    # color_pixels_bsplines(im, IMAGE_SCALE, nodes)
     glReadPixels(0, 0, w*IMAGE_SCALE, h*IMAGE_SCALE, GL_RGBA, GL_UNSIGNED_BYTE, opengl_buffer)
-    glFlush()
-    # glutLeaveMainLoop()
+    # glFlush()
+    glutSwapBuffers()
+    glutLeaveMainLoop()
 
 def display_optimized():
     pass
 
 def render(render_stage):
     global window_id, im, imagename
-    print render_stage
     w, h = im.size
     glutInit()
-    # glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS)
+    glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS)
     glutInitWindowSize(w * IMAGE_SCALE, h * IMAGE_SCALE)
     window_id = glutCreateWindow(render_stage + ' - '  + imagename)
-    # glutHideWindow()
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA)
+    glutHideWindow()
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA)
     if render_stage == 'original':
         glutDisplayFunc(display_original)
     elif render_stage == 'similarity':
@@ -176,6 +176,15 @@ imagename = process_command_line_arg('--image', True, True, 'need an image to co
 
 im = Image.open(imagename)
 w, h = im.size
+
+# obtain the scale factor from on the image dimensions
+IMAGE_SCALE = process_command_line_arg('--scale', necessary=False, needs_arg=True)
+if IMAGE_SCALE is None:
+    max_scale = min(SCREEN_WIDTH // w, SCREEN_HEIGHT // h)
+    # find the largest multiple of 4 <= this value
+    IMAGE_SCALE = (max_scale >> 2) << 2 if max_scale > 3 else max_scale
+else:
+    IMAGE_SCALE = int(IMAGE_SCALE)
 
 opengl_buffer = (GLubyte*(4*w*h*IMAGE_SCALE*IMAGE_SCALE))(0)
 
@@ -916,53 +925,9 @@ def test_visible_edges():
 if '--tests' in sys.argv:
     test_visible_edges()
 
-# for v in vedges:
-#     v.bspline = bspline_eval(v.points)
-
-from numpy import array, linspace
-import matplotlib.pyplot as plt
-import scipy.interpolate as si
-
-# credit - this code is a modified version of http://stackoverflow.com/a/24693358
 DEGREE, SMOOTHNESS = 3, 500
-# DEGREE, SMOOTHNESS = 2, 500
 for v in vedges:
-    pts = [p.get_xy() for p in v.points]
-    degree = DEGREE
-
-    # cycle check
-    periodic = False
-    if pts[0] == pts[-1]:
-        # pts.pop()
-        periodic = True
-        pts = pts[:-1]
-
-    if periodic: pts = pts + pts[0 : degree+1]
-    else: pts = [pts[0]] + pts + [pts[-1],pts[-1]]
-
-    pts = array(pts)
-    n_points = len(pts)
-    x, y = pts[:,0], pts[:,1]
-
-    t = range(len(x))
-    ipl_t = linspace(1.0, len(pts) - degree, SMOOTHNESS)
-
-    x_tup = si.splrep(t, x, k=degree, per=periodic)
-    y_tup = si.splrep(t, y, k=degree, per=periodic)
-    x_list = list(x_tup)
-    xl = x.tolist()
-
-    y_list = list(y_tup)
-    yl = y.tolist()
-
-    if periodic:
-        x_list[1] = [0.0] + xl + [0.0, 0.0, 0.0, 0.0]
-        y_list[1] = [0.0] + yl + [0.0, 0.0, 0.0, 0.0]
-
-    x_i = si.splev(ipl_t, x_list)
-    y_i = si.splev(ipl_t, y_list)
-
-    v.bspline = zip(x_i, y_i)
+    v.bspline = bspline([p.get_xy() for p in v.points], DEGREE, SMOOTHNESS)
 
 render_stage = process_command_line_arg('--render')
 if render_stage is not None:

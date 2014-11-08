@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+Dir.glob('img/*.png') do |image_name|
+	%w[similarity voronoi vedges bsplines].each do |render_stage|
+		output_name = image_name.gsub('img/', "img/#{render_stage}/").gsub('.png', "_#{render_stage}.png")
+		puts "Saving #{output_name}"
+		`python main.py --render #{render_stage} --image #{image_name} --save #{output_name}`
+	end
+end

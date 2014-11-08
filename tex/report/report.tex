@@ -106,23 +106,89 @@ Many raster-to-vector converters also exist. However, a quick look at the paper'
 
 \textcolor{myrust}{\section{Outline of the algorithm}}
 
-The algorithm proceeds in three stages, each stage gradually approaching the final result.
+The algorithm proceeds in three stages, each stage gradually approaching the final result.\\
 
-In the first stage, we view the square pixels of the image as a tiling of the image. We then reshape these pixels into polygons using a simplification of a modified Voronoi diagram. This is basically a re-tiling of the image. By doing this, we hope to approximate visual features of the image via appropriate polygons. This is the Voronoi stage.
+\begin{enumerate}
 
-In the second stage, we identify edge sequences within the Voronoi and, using them as control polygons, fit quadratic b-splines. (In our implementation, we use cubic b-splines). This smoothens some of the blocky features of the Voronoi diagram. At the end of this stage, every visible edge has been fitted with a b-spline.
+\item In the first stage, we view the square pixels of the image as a tiling of the image. We then reshape these pixels into polygons using a simplification of a modified Voronoi diagram. This is basically a re-tiling of the image. By doing this, we hope to approximate visual features of the image via appropriate polygons. This is the \textbf{Voronoi stage}.
 
-In the third stage, we optimize the b-splines to reduce staircasing artifacts. This step can lead to over-smoothing, so the authors correct that by using corner detection to avoid optimizing certain patterns of control points.
+\item In the second stage, we identify edge sequences within the Voronoi diagram and using them as control polygons, fit quadratic b-splines. (In our implementation, we use cubic b-splines). This smoothens some of the blocky features of the Voronoi diagram. At the end of this stage, every visible edge has been fitted with a b-spline. This is the \textbf{spline extraction stage}.
 
-Finally, the b-splines are rendered by discretely sampling the curve, and vector-rendering techniques (not explained fully in the paper) are used to render the final image. Since b-splines are continuous curves, they are resolution-independent, which makes them a good vector representation. The only thing that changes while rendering at higher resolutions is the frequency with which we sample each spline.
+\item In the third stage, we optimize the b-splines to reduce staircasing artifacts. This step can lead to over-smoothing, so the authors correct that by using corner detection to avoid optimizing certain patterns of control points. This is the \textbf{spline optimization stage}.
+
+\end{enumerate}
+
+Finally, each b-spline is rendered by discrete sampling, and vector-rendering techniques are used to render the final image. Since b-splines are continuous curves, they are resolution-independent, which makes them a good vector representation. The only thing that needs to change while rendering at higher resolutions is the frequency with which we sample each spline.\\
+
+Each of these stages consists of some sub-stages.
+
+\textcolor{myrust}{\subsection{Voronoi stage}}
+
+In this stage, each square pixel is converted into a polygon. To do so, we first create a graph called the \textbf{similarity graph}. It consists of nodes arranged in a $R \times C$ mesh, each node corresponding to a pixel in the input image. There is an edge between two nodes iff\\
+
+\begin{itemize}
+
+\item They are either horizontally adjacent, vertically adjacent or diagonally adjacent, \textbf{and}
+\item The difference in Y, U or V values is less than $\frac{48}{255}$, $\frac{7}{255}$ or $\frac{6}{255}$ respectively.
+
+\end{itemize}
+
+We take this similarity graph and prune away edges until the resulting graph is planar. The exact details are mentioned in the paper. The interesting part of this step is when we have four nodes in a square configuration, say, A, B, C and D, with A joined to C and B joined to D, but no other connections exist among these four nodes. In order to make the graph planar, we must remove one of AC and BD. To do so, the authors propose three heuristics - the \textbf{curves} heuristic (implemented via a double unidirectional search), the \textbf{sparse} heuristic (implemented via a window-bounded depth first search) and the \textbf{islands} heuristic (implemented via a simple if-check that uses an empirically-determined constant).\\
+
+Once we have a planar similarity graph, we could obtain a generalized Voronoi diagram in which each Voronoi cell contains the points that are closest to a node and the union of its half-edges. We would then consider all vertices of Voronoi cells that have exactly two outgoing edges in the Voronoi diagram, and remove all such vertices to obtain a simplified Voronoi diagram.\\
+
+The authors observed, however, that the simplified Voronoi diagram can be computed in one step, by noting that there are only a finite number of locations where a point can exist in the simplified Voronoi diagram. In general, if the centre of a node has the coordinates $(x, y)$, then the vertices of the Voronoi cell must be located at $(a, b)$, where $a = x \pm 0.25$, $a = x \pm 0.5$ or $a = x \pm 0.75$ (and similarly for $b$).\\
+
+At the end of this stage, we have obtained the \textbf{Voronoi re-tiling} of the original input image. It's worth noting that at this stage itself, the output looks pretty good. \href{https://www.youtube.com/watch?v=n4UP7V_Ev0g}{We obtained this result upon running the algorithm upto only the Voronoi stage on a scene from Super Mario World}.
+
+\textcolor{myrust}{\subsection{Spline extraction stage}}
+
+In this stage, we identify \textbf{visible edge sequences}, and replace each one with a b-spline for whom the control polygon is the edge sequence itself. A \textbf{visible edge} is defined as an edge in the Voronoi diagram which separates dissimilar pixels (dissimilar according to the YUV criterion above). A visible edge sequence of length $k$ is a sequence of points $p_1, p_2, ..., p_{k+1}$ such that $p_i$ and $p_{i+1}$ are connected by a visible edge for $1 \le i \le k$. Also, $p_i$ should have exactly two outgoing visible edges for $1 < i \le k$ while $p_1$ and $p_{k+1}$ should \textit{not} have valence 2. Note that $p_1 = p_{k+1}$ is possible, i.e. the visible edge sequence is a cycle.\\
+
+Having identified visible edge sequences, we consider every point in the Voronoi diagram which is at the junction of three visible edge sequences. We then merge two of the incident visible edge sequences using heuristics described in the paper (this involves subclassifying visible edges as \textbf{shading} edges or \textbf{contour} edges based on how dissimilar the corresponding pixels are).
+
+\textcolor{myrust}{\subsection{Spline optimization stage}}
+
+In this stage, we optimize the control points of each b-spline curve by minimizing an associated energy function. The aim is to reduce staircasing artifacts.
 
 \textcolor{myrust}{\section{What we have implemented}}
 
-% We have implemented all stages of the paper except the optimization. We have written rendering code
+We have implemented all stages of the paper except spline optimization and vector rendering due to time constraints. All code was written from scratch, without using any external libraries, except for the b-spline fitting, which uses the \textbf{scipy} package. The paper was implemented purely in \textbf{Python}. For scripting, we used \textbf{Python}, \textbf{Ruby} and \textbf{Java}. For reading in images, we use Python's built-in image processing library \textbf{PIL}.
+
+\textcolor{myrust}{\section{Dataset}}
+
+The authors of the paper have demonstrated their algorithm on 54 pixel art sprites, as well as on each individual frame of a gameplay sequence from Super Mario World (as mentioned above) on \href{http://research.microsoft.com/en-us/um/people/kopf/pixelart/supplementary/comparison\_bicubic.html}{this page}. We have used these images as our dataset.
+
+\textcolor{myrust}{\section{Some Outputs}}
+
+% \centerline{\includegraphics{}}
+% \centerline{\includegraphics{}}
+% \centerline{\includegraphics{}}
+% \centerline{\includegraphics{}}
+
+\textcolor{myrust}{\section{Difficulties}}
+
+\textcolor{myrust}{\section{Future work}}
+
+\textcolor{myrust}{\subsection{Performance}}
+
+Although our Voronoi output matches the paper's final output to a large extent, there is a lot of scope for improvement. Our code is completely unoptimized. For each frame from the Mario video (there were 1397 in total), our code takes about 1 second to render the Voronoi output. This can be made much faster. Here are some things we can do to improve performance:\\
+
+\begin{enumerate}
+  \item Optimize some of the algorithms, both in terms of memory consumption and running-time.
+  \item Rewrite the codebase in a faster language, like \textbf{C}\verb!++! or \textbf{Rust}. We have already ported part of the inital codebase to \textbf{C}\verb!++!.
+  \item Currently, we are using a simple but very na{\"i}ve method for saving the output - we hide the display window after opening it, call \texttt{glReadPixels()} to capture the window data into a image data buffer, then use PIL functions to save the image data buffer to a \texttt{png} image. Essentially, we are rendering into the Default Backbuffer and then displaying it and hiding it, whereas we could instead render into an Framebuffer Object which could then be directly written to an image file.
+\end{enumerate}
+
+\textcolor{myrust}{\subsection{Extensions to the paper}}
+
+\textcolor{myrust}{\subsection{Emulator}}
+
+\textcolor{myrust}{\subsection{Future improvements}}
 
 %%%%%%%%%%%%%%%%%%%%%%5
 
-The authors of the paper have demonstrated their algorithm on around 54 inputs on \href{http://research.microsoft.com/en-us/um/people/kopf/pixelart/supplementary/comparison\_bicubic.html}{this page}. We shall use these images as our dataset.
+
 
 \textcolor{myrust}{\section{Validation strategy}}
 
